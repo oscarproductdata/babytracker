@@ -4,16 +4,58 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const TIMEZONE = "Europe/Stockholm";
 
-const CATEGORY_COLORS = {
-  'Ersättning': '#2d6a4f', 'Amning': '#9d174d', 'Vikt': '#1d4ed8',
-  'Bajs': '#b45309', 'Kiss': '#6d28d9',
+// ============================================================
+// THEME — edit here to change colors across the whole app
+// ============================================================
+const THEME = {
+  // App background and surfaces
+  bg:          '#f8f7f4',
+  bg2:         '#ffffff',
+  border:      'rgba(0,0,0,0.08)',
+  borderHover: 'rgba(0,0,0,0.14)',
+
+  // Text
+  text:        '#1a1916',
+  textMuted:   '#6b6860',
+  textFaint:   '#9e9b95',
+
+  // Primary action color (buttons, nav active)
+  accent:      '#2d6a4f',
+  accentDark:  '#1b4332',
+
+  // Danger
+  danger:      '#c0392b',
+
+  // Chart grid
+  chartGrid:   'rgba(0,0,0,0.05)',
+  chartTick:   '#9e9b95',
+
+  // Category colors — each has:
+  //   base:    main color (dot, border, active button)
+  //   chart:   bar/line fill (semi-transparent)
+  //   card:    card background tint
+  //   text:    text on card background
+  categories: {
+    'Ersättning': { base: '#2d6a4f', chart: 'rgba(45,106,79,0.25)',   card: '#e8f4ee', text: '#1b4332' },
+    'Amning':     { base: '#9d174d', chart: 'rgba(157,23,77,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
+    'Vikt':       { base: '#1d4ed8', chart: 'rgba(29,78,216,0.15)',   card: '#eff6ff', text: '#1e3a8a' },
+    'Bajs':       { base: '#b45309', chart: 'rgba(180,83,9,0.25)',    card: '#fef3c7', text: '#78350f' },
+    'Kiss':       { base: '#ca8a04', chart: 'rgba(202,138,4,0.25)',   card: '#fefce8', text: '#713f12' },
+  },
+
+  // Fallback for unknown categories
+  categoryDefault: { base: '#6b6860', chart: 'rgba(107,104,96,0.25)', card: '#f1efe8', text: '#44403c' },
 };
+
+// Helper to get category theme, with fallback
+function getCat(cat) {
+  return THEME.categories[cat] || THEME.categoryDefault;
+}
+
 const CATEGORY_UNITS = {
   'Ersättning': 'ml', 'Amning': 'min', 'Vikt': 'gram', 'Bajs': 'n/a', 'Kiss': 'n/a',
 };
 const DEFAULT_CATEGORIES = ['Ersättning', 'Amning', 'Vikt', 'Bajs', 'Kiss'];
-
-function getColor(cat) { return CATEGORY_COLORS[cat] || '#6b6860'; }
 
 function timeSince(ts) {
   const mins = Math.floor((Date.now() - ts) / 60000);
@@ -45,13 +87,11 @@ function nowStockholm() { return toDatetimeLocal(Date.now()); }
 function TrendChart({ entries, categories }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
-  const [activeCat, setActiveCat] = useState('Ersättning');
   const chartCats = categories.filter(c => c !== 'Vikt');
+  const [activeCat, setActiveCat] = useState(chartCats[0] || 'Ersättning');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.Chart) return;
-    if (!canvasRef.current) return;
+    if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
 
     const days = 7;
@@ -60,8 +100,7 @@ function TrendChart({ entries, categories }) {
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: TIMEZONE });
-      labels.push(dateStr);
+      labels.push(d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: TIMEZONE }));
       const start = new Date(d.toLocaleDateString('sv-SE', { timeZone: TIMEZONE })).getTime();
       const end = start + 86400000;
       const dayEntries = entries.filter(e => e.what === activeCat && e.time >= start && e.time < end);
@@ -69,16 +108,16 @@ function TrendChart({ entries, categories }) {
       data.push(total || dayEntries.length);
     }
 
-    const color = getColor(activeCat);
+    const cat = getCat(activeCat);
     chartRef.current = new window.Chart(canvasRef.current, {
       type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: color + '99', borderColor: color, borderWidth: 1.5, borderRadius: 6 }] },
+      data: { labels, datasets: [{ data, backgroundColor: cat.chart, borderColor: cat.base, borderWidth: 1.5, borderRadius: 6 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
-          y: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true }
+          x: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid } },
+          y: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid }, beginAtZero: true }
         }
       }
     });
@@ -87,15 +126,19 @@ function TrendChart({ entries, categories }) {
   return (
     <div style={S.chartCard}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        {chartCats.map(cat => (
-          <button key={cat} onClick={() => setActiveCat(cat)} style={{
-            fontSize: 12, padding: '5px 12px', borderRadius: 20,
-            border: '1px solid ' + (activeCat === cat ? getColor(cat) : 'rgba(0,0,0,0.14)'),
-            background: activeCat === cat ? getColor(cat) : 'none',
-            color: activeCat === cat ? 'white' : '#6b6860',
-            cursor: 'pointer'
-          }}>{cat}</button>
-        ))}
+        {chartCats.map(cat => {
+          const c = getCat(cat);
+          const isActive = activeCat === cat;
+          return (
+            <button key={cat} onClick={() => setActiveCat(cat)} style={{
+              fontSize: 12, padding: '5px 12px', borderRadius: 20,
+              border: '1px solid ' + (isActive ? c.base : THEME.borderHover),
+              background: isActive ? c.base : 'none',
+              color: isActive ? 'white' : THEME.textMuted,
+              cursor: 'pointer',
+            }}>{cat}</button>
+          );
+        })}
       </div>
       <div style={{ position: 'relative', height: 180 }}>
         <canvas ref={canvasRef} role="img" aria-label="Trendgraf" />
@@ -107,11 +150,10 @@ function TrendChart({ entries, categories }) {
 function WeightChart({ entries }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
+  const cat = getCat('Vikt');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.Chart) return;
-    if (!canvasRef.current) return;
+    if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
 
     const weightData = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a, b) => a.time - b.time);
@@ -122,13 +164,13 @@ function WeightChart({ entries }) {
 
     chartRef.current = new window.Chart(canvasRef.current, {
       type: 'line',
-      data: { labels, datasets: [{ data, borderColor: '#1d4ed8', backgroundColor: 'rgba(29,78,216,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#1d4ed8', tension: 0.3, fill: true }] },
+      data: { labels, datasets: [{ data, borderColor: cat.base, backgroundColor: cat.chart, borderWidth: 2, pointRadius: 4, pointBackgroundColor: cat.base, tension: 0.3, fill: true }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#9e9b95', font: { size: 11 }, maxRotation: 45 }, grid: { color: 'rgba(0,0,0,0.05)' } },
-          y: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+          x: { ticks: { color: THEME.chartTick, font: { size: 11 }, maxRotation: 45 }, grid: { color: THEME.chartGrid } },
+          y: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid } }
         }
       }
     });
@@ -160,7 +202,7 @@ export default function App() {
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
       script.onload = () => setChartJsLoaded(true);
       document.head.appendChild(script);
-    } else if (window.Chart) {
+    } else if (typeof window !== 'undefined' && window.Chart) {
       setChartJsLoaded(true);
     }
   }, []);
@@ -176,10 +218,7 @@ export default function App() {
   }, []);
 
   useEffect(() => { if (session) fetchEntries(); }, [session, fetchEntries]);
-
-  useEffect(() => {
-    if (page === 'add') setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
-  }, [page]);
+  useEffect(() => { if (page === 'add') setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); }, [page]);
 
   if (status === 'loading') return <Loading />;
   if (!session) return <Login />;
@@ -193,8 +232,7 @@ export default function App() {
   const submitEntry = async () => {
     if (!form.what || !form.time) { showToast('Välj kategori och tid'); return; }
     const res = await fetch('/api/entries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: form.what, time: new Date(form.time).getTime(), amount: form.amount, unit: form.unit }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
@@ -203,8 +241,7 @@ export default function App() {
 
   const saveEdit = async () => {
     const res = await fetch('/api/entries/' + editEntry.id, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setEditEntry(null); }
@@ -219,14 +256,14 @@ export default function App() {
   };
 
   return (
-    <div style={S.app}>
+    <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} chartJsLoaded={chartJsLoaded} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} categories={categories} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} session={session} onSignOut={() => signOut()} />}
 
-      <nav style={S.nav}>
+      <nav style={{ ...S.nav, background: THEME.bg2, borderTop: '1px solid ' + THEME.border }}>
         {[
           { id: 'dashboard', icon: <GridIcon />, label: 'Översikt' },
           { id: 'log', icon: <LogIcon />, label: 'Logg' },
@@ -235,12 +272,12 @@ export default function App() {
           { id: 'settings', icon: <SettingsIcon />, label: 'Inställningar' },
         ].map(({ id, icon, label }) => id === 'add' ? (
           <button key="add" style={S.navAdd} onClick={() => setPage('add')}>
-            <div style={{ ...S.addCircle, background: page === 'add' ? '#1b4332' : '#2d6a4f' }}>
+            <div style={{ ...S.addCircle, background: page === 'add' ? THEME.accentDark : THEME.accent }}>
               <PlusIcon />
             </div>
           </button>
         ) : (
-          <button key={id} style={{ ...S.navBtn, color: page === id ? '#2d6a4f' : '#9e9b95' }} onClick={() => setPage(id)}>
+          <button key={id} style={{ ...S.navBtn, color: page === id ? THEME.accent : THEME.textFaint }} onClick={() => setPage(id)}>
             {icon}
             <span style={{ fontSize: 10 }}>{label}</span>
           </button>
@@ -249,36 +286,36 @@ export default function App() {
 
       {editEntry && (
         <div style={S.overlay} onClick={e => e.target === e.currentTarget && setEditEntry(null)}>
-          <div style={S.modal}>
-            <div style={S.handle} />
-            <div style={S.modalTitle}>Redigera post</div>
-            <div style={S.formCard}>
+          <div style={{ ...S.modal, background: THEME.bg2 }}>
+            <div style={{ ...S.handle, background: THEME.borderHover }} />
+            <div style={{ ...S.modalTitle, color: THEME.text }}>Redigera post</div>
+            <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
               <FormRow label="Kategori">
-                <select style={S.input} value={editEntry.what} onChange={e => handleCategoryChange(e.target.value, true)}>
+                <select style={{ ...S.input, color: THEME.text }} value={editEntry.what} onChange={e => handleCategoryChange(e.target.value, true)}>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </FormRow>
               <FormRow label="Tid">
-                <input type="datetime-local" style={S.input} value={toDatetimeLocal(editEntry.time)} onChange={e => setEditEntry(v => ({ ...v, time: new Date(e.target.value).getTime() }))} />
+                <input type="datetime-local" style={{ ...S.input, color: THEME.text }} value={toDatetimeLocal(editEntry.time)} onChange={e => setEditEntry(v => ({ ...v, time: new Date(e.target.value).getTime() }))} />
               </FormRow>
               <FormRow label="Mängd">
-                <input type="number" style={S.input} value={editEntry.amount || ''} onChange={e => setEditEntry(v => ({ ...v, amount: e.target.value }))} inputMode="decimal" />
+                <input type="number" style={{ ...S.input, color: THEME.text }} value={editEntry.amount || ''} onChange={e => setEditEntry(v => ({ ...v, amount: e.target.value }))} inputMode="decimal" />
               </FormRow>
               <FormRow label="Enhet" last>
-                <select style={S.input} value={editEntry.unit} onChange={e => setEditEntry(v => ({ ...v, unit: e.target.value }))}>
+                <select style={{ ...S.input, color: THEME.text }} value={editEntry.unit} onChange={e => setEditEntry(v => ({ ...v, unit: e.target.value }))}>
                   {['n/a','ml','min','gram'].map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </FormRow>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button style={{ ...S.modalBtn, color: '#c0392b' }} onClick={deleteEntry}>Radera</button>
-              <button style={{ ...S.modalBtn, background: '#2d6a4f', color: 'white', borderColor: '#2d6a4f' }} onClick={saveEdit}>Spara</button>
+              <button style={{ ...S.modalBtn, color: THEME.danger }} onClick={deleteEntry}>Radera</button>
+              <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent }} onClick={saveEdit}>Spara</button>
             </div>
           </div>
         </div>
       )}
 
-      {toast && <div style={S.toast}>{toast}</div>}
+      {toast && <div style={{ ...S.toast, background: THEME.text, color: THEME.bg2 }}>{toast}</div>}
     </div>
   );
 }
@@ -287,38 +324,40 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const trackCats = categories.filter(c => c !== 'Vikt');
+  const viktCat = getCat('Vikt');
 
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={S.h1}>Översikt</h1>
-        <p style={S.sub}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
+        <h1 style={{ ...S.h1, color: THEME.text }}>Översikt</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
 
       {weightEntries.length > 0 && (
-        <div style={{ background: '#eff6ff', borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid rgba(29,78,216,0.15)' }}>
-          <div style={{ fontSize: 11, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Senaste vikt</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#1d4ed8', letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
-          <div style={{ fontSize: 12, color: '#6b6860', marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
+        <div style={{ background: viktCat.card, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
+          <div style={{ fontSize: 11, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Senaste vikt</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: viktCat.base, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
+          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
         </div>
       )}
 
-      {loading ? <div style={S.empty}>Laddar...</div> : (
+      {loading ? <div style={{ ...S.empty, color: THEME.textFaint }}>Laddar...</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
           {trackCats.map(cat => {
+            const c = getCat(cat);
             const catEntries = entries.filter(e => e.what === cat).sort((a,b) => b.time - a.time);
             const last = catEntries[0];
             const last24 = catEntries.filter(e => Date.now() - e.time < 86400000);
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
-              <div key={cat} style={S.summaryCard}>
-                <div style={{ fontSize: 11, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: getColor(cat), flexShrink: 0 }} />
+              <div key={cat} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
+                <div style={{ fontSize: 11, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
                   {cat}
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1 }}>{last ? timeSince(last.time) : '—'}</div>
-                <div style={{ fontSize: 12, color: '#6b6860', marginTop: 3 }}>sedan senast</div>
-                <div style={{ fontSize: 12, color: '#6b6860', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border }}>
                   {total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h'}
                 </div>
               </div>
@@ -330,11 +369,11 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
       {chartJsLoaded && entries.length > 0 && (
         <>
           <div style={{ padding: '0 16px 8px' }}>
-            <div style={S.sectionTitle}>Trend senaste 7 dagarna</div>
+            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
             <TrendChart entries={entries} categories={categories} />
           </div>
           <div style={{ padding: '0 16px 16px' }}>
-            <div style={S.sectionTitle}>Vikt</div>
+            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Vikt</div>
             <WeightChart entries={entries} />
           </div>
         </>
@@ -348,26 +387,27 @@ function Log({ entries, onEdit }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={S.h1}>Logg</h1>
-        <p style={S.sub}>{entries.length} poster</p>
+        <h1 style={{ ...S.h1, color: THEME.text }}>Logg</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>{entries.length} poster</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        {!entries.length && <div style={S.empty}>Inga poster ännu.</div>}
+        {!entries.length && <div style={{ ...S.empty, color: THEME.textFaint }}>Inga poster ännu.</div>}
         {entries.map(e => {
+          const c = getCat(e.what);
           const dateStr = new Date(e.time).toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
           const showHeader = dateStr !== currentDate;
           if (showHeader) currentDate = dateStr;
           return (
             <div key={e.id}>
-              {showHeader && <div style={{ fontSize: 12, fontWeight: 600, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '16px 0 8px' }}>{formatDate(e.time)}</div>}
-              <div style={S.logItem}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: getColor(e.what), flexShrink: 0 }} />
+              {showHeader && <div style={{ fontSize: 12, fontWeight: 600, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '16px 0 8px' }}>{formatDate(e.time)}</div>}
+              <div style={{ ...S.logItem, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{e.what}</div>
-                  <div style={{ fontSize: 12, color: '#6b6860', marginTop: 2 }}>{e.amount ? e.amount + ' ' + e.unit : '—'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{e.what}</div>
+                  <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>{e.amount ? e.amount + ' ' + e.unit : '—'}</div>
                 </div>
-                <div style={{ fontSize: 12, color: '#9e9b95' }}>{formatTime(e.time)}</div>
-                <button style={S.logBtn} onClick={() => onEdit(e)}><EditIcon /></button>
+                <div style={{ fontSize: 12, color: THEME.textFaint }}>{formatTime(e.time)}</div>
+                <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={() => onEdit(e)}><EditIcon /></button>
               </div>
             </div>
           );
@@ -381,30 +421,30 @@ function AddForm({ form, setForm, categories, onCategoryChange, onSubmit }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={S.h1}>Lägg till</h1>
-        <p style={S.sub}>Ny post</p>
+        <h1 style={{ ...S.h1, color: THEME.text }}>Lägg till</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>Ny post</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        <div style={S.formCard}>
+        <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
           <FormRow label="Kategori">
-            <select style={S.input} value={form.what} onChange={e => onCategoryChange(e.target.value)}>
+            <select style={{ ...S.input, color: THEME.text }} value={form.what} onChange={e => onCategoryChange(e.target.value)}>
               <option value="">Välj...</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </FormRow>
           <FormRow label="Tid">
-            <input type="datetime-local" style={S.input} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+            <input type="datetime-local" style={{ ...S.input, color: THEME.text }} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
           </FormRow>
           <FormRow label="Mängd">
-            <input type="number" style={S.input} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" inputMode="decimal" />
+            <input type="number" style={{ ...S.input, color: THEME.text }} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" inputMode="decimal" />
           </FormRow>
           <FormRow label="Enhet" last>
-            <select style={S.input} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
+            <select style={{ ...S.input, color: THEME.text }} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
               {['n/a','ml','min','gram'].map(u => <option key={u} value={u}>{u}</option>)}
             </select>
           </FormRow>
         </div>
-        <button style={S.submitBtn} onClick={onSubmit}>Spara post</button>
+        <button style={{ ...S.submitBtn, background: THEME.accent }} onClick={onSubmit}>Spara post</button>
       </div>
     </div>
   );
@@ -415,25 +455,26 @@ function Stats({ entries, categories }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={S.h1}>Statistik</h1>
-        <p style={S.sub}>Senaste 24 timmar</p>
+        <h1 style={{ ...S.h1, color: THEME.text }}>Statistik</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>Senaste 24 timmar</p>
       </div>
       <div style={{ padding: '0 16px' }}>
         {categories.map(cat => {
+          const c = getCat(cat);
           const last24 = entries.filter(e => e.what === cat && now - e.time < 86400000);
           const total = last24.reduce((s,e) => s+(parseFloat(e.amount)||0), 0);
           const lastEntry = entries.filter(e => e.what === cat).sort((a,b) => b.time - a.time)[0];
           return (
-            <div key={cat} style={{ ...S.formCard, marginBottom: 10 }}>
-              <div style={{ ...S.formRow, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: getColor(cat) }} />
+            <div key={cat} style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 10 }}>
+              <div style={{ ...S.formRow, borderBottom: '1px solid ' + THEME.border }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: THEME.text }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
                   {cat}
                 </span>
-                <span style={{ fontSize: 14, color: '#6b6860' }}>{last24.length} st</span>
+                <span style={{ fontSize: 14, color: THEME.textMuted }}>{last24.length} st</span>
               </div>
-              {total > 0 && <div style={S.formRow}><span style={{ fontSize: 14, color: '#6b6860' }}>Total</span><span style={{ fontSize: 14 }}>{total} {lastEntry?.unit}</span></div>}
-              <div style={S.formRow}><span style={{ fontSize: 14, color: '#6b6860' }}>Senast</span><span style={{ fontSize: 14, color: '#6b6860' }}>{lastEntry ? timeSince(lastEntry.time) + ' sedan' : '—'}</span></div>
+              {total > 0 && <div style={S.formRow}><span style={{ fontSize: 14, color: THEME.textMuted }}>Total</span><span style={{ fontSize: 14, color: THEME.text }}>{total} {lastEntry?.unit}</span></div>}
+              <div style={S.formRow}><span style={{ fontSize: 14, color: THEME.textMuted }}>Senast</span><span style={{ fontSize: 14, color: THEME.textMuted }}>{lastEntry ? timeSince(lastEntry.time) + ' sedan' : '—'}</span></div>
             </div>
           );
         })}
@@ -451,29 +492,32 @@ function Settings({ categories, setCategories, session, onSignOut }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={S.h1}>Inställningar</h1>
-        <p style={S.sub}>{session.user.email}</p>
+        <h1 style={{ ...S.h1, color: THEME.text }}>Inställningar</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>{session.user.email}</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Kategorier</div>
-        <div style={S.formCard}>
-          {categories.map((cat, i) => (
-            <div key={cat} style={{ ...S.formRow, borderBottom: i < categories.length-1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: getColor(cat) }} />
-                {cat}
-              </span>
-              <button style={S.logBtn} onClick={() => setCategories(c => c.filter((_,j) => j !== i))}>✕</button>
-            </div>
-          ))}
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Kategorier</div>
+        <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
+          {categories.map((cat, i) => {
+            const c = getCat(cat);
+            return (
+              <div key={cat} style={{ ...S.formRow, borderBottom: i < categories.length-1 ? '1px solid ' + THEME.border : 'none' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.text }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
+                  {cat}
+                </span>
+                <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={() => setCategories(c => c.filter((_,j) => j !== i))}>✕</button>
+              </div>
+            );
+          })}
         </div>
-        <button style={{ ...S.submitBtn, background: 'rgba(0,0,0,0.05)', color: '#1a1916', marginTop: 10 }} onClick={addCat}>+ Lägg till kategori</button>
+        <button style={{ ...S.submitBtn, background: THEME.border, color: THEME.text, marginTop: 10 }} onClick={addCat}>+ Lägg till kategori</button>
         <div style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Konto</div>
-          <div style={S.formCard}>
+          <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Konto</div>
+          <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
             <div style={S.formRow}>
-              <span style={{ fontSize: 14 }}>{session.user.name}</span>
-              <button style={{ ...S.logBtn, color: '#c0392b', fontSize: 13 }} onClick={onSignOut}>Logga ut</button>
+              <span style={{ fontSize: 14, color: THEME.text }}>{session.user.name}</span>
+              <button style={{ ...S.logBtn, color: THEME.danger, fontSize: 13 }} onClick={onSignOut}>Logga ut</button>
             </div>
           </div>
         </div>
@@ -483,16 +527,16 @@ function Settings({ categories, setCategories, session, onSignOut }) {
 }
 
 function Loading() {
-  return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:'-apple-system,sans-serif',fontSize:14,color:'#6b6860' }}>Laddar...</div>;
+  return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:'-apple-system,sans-serif',fontSize:14,color:THEME.textMuted }}>Laddar...</div>;
 }
 
 function Login() {
   return (
-    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:'-apple-system,sans-serif',background:'#f8f7f4',padding:20,textAlign:'center' }}>
+    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:'-apple-system,sans-serif',background:THEME.bg,padding:20,textAlign:'center' }}>
       <div style={{ fontSize:56,marginBottom:16 }}>🍼</div>
-      <h1 style={{ fontSize:28,fontWeight:700,letterSpacing:'-0.5px',marginBottom:8,color:'#1a1916' }}>Babytracker</h1>
-      <p style={{ fontSize:15,color:'#6b6860',marginBottom:32 }}>Logga in för att fortsätta</p>
-      <button onClick={() => signIn('google')} style={{ padding:'14px 28px',background:'#2d6a4f',color:'white',border:'none',borderRadius:12,fontSize:16,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:10 }}>
+      <h1 style={{ fontSize:28,fontWeight:700,letterSpacing:'-0.5px',marginBottom:8,color:THEME.text }}>Babytracker</h1>
+      <p style={{ fontSize:15,color:THEME.textMuted,marginBottom:32 }}>Logga in för att fortsätta</p>
+      <button onClick={() => signIn('google')} style={{ padding:'14px 28px',background:THEME.accent,color:'white',border:'none',borderRadius:12,fontSize:16,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:10 }}>
         <svg width="20" height="20" viewBox="0 0 24 24"><path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="white" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="white" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Logga in med Google
       </button>
@@ -502,39 +546,39 @@ function Login() {
 
 function FormRow({ label, children, last }) {
   return (
-    <div style={{ ...S.formRow, borderBottom: last ? 'none' : '1px solid rgba(0,0,0,0.06)' }}>
-      <span style={{ fontSize: 14, fontWeight: 500, minWidth: 90 }}>{label}</span>
+    <div style={{ ...S.formRow, borderBottom: last ? 'none' : '1px solid ' + THEME.border }}>
+      <span style={{ fontSize: 14, fontWeight: 500, minWidth: 90, color: THEME.text }}>{label}</span>
       {children}
     </div>
   );
 }
 
 const S = {
-  app: { fontFamily: '-apple-system,"Helvetica Neue",sans-serif', background: '#f8f7f4', minHeight: '100vh', maxWidth: 480, margin: '0 auto', color: '#1a1916' },
+  app: { fontFamily: '-apple-system,"Helvetica Neue",sans-serif', minHeight: '100vh', maxWidth: 480, margin: '0 auto' },
   page: { paddingBottom: 90 },
   header: { padding: '56px 20px 16px' },
   h1: { fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', margin: 0 },
-  sub: { fontSize: 14, color: '#6b6860', marginTop: 2 },
-  sectionTitle: { fontSize: 13, fontWeight: 600, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
-  nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'white', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
-  navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em', transition: 'color 0.15s' },
+  sub: { fontSize: 14, marginTop: 2 },
+  sectionTitle: { fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
+  nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
+  navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em' },
   navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  summaryCard: { background: 'white', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(0,0,0,0.08)' },
-  chartCard: { background: 'white', borderRadius: 14, padding: 16, border: '1px solid rgba(0,0,0,0.08)', marginBottom: 16 },
-  formCard: { background: 'white', borderRadius: 14, border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' },
+  summaryCard: { borderRadius: 14, padding: '14px 16px' },
+  chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid rgba(0,0,0,0.08)' },
+  formCard: { borderRadius: 14, overflow: 'hidden' },
   formRow: { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
-  input: { flex: 1, background: 'none', border: 'none', fontSize: 14, color: '#1a1916', textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
-  submitBtn: { width: '100%', padding: 16, background: '#2d6a4f', color: 'white', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 12 },
-  logItem: { background: 'white', borderRadius: 8, padding: '12px 14px', border: '1px solid rgba(0,0,0,0.08)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 },
-  logBtn: { background: 'none', border: 'none', color: '#9e9b95', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' },
+  input: { flex: 1, background: 'none', border: 'none', fontSize: 14, textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
+  submitBtn: { width: '100%', padding: 16, color: 'white', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 12 },
+  logItem: { borderRadius: 8, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 },
+  logBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  modal: { background: 'white', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, padding: '20px 16px 36px' },
-  handle: { width: 36, height: 4, background: 'rgba(0,0,0,0.14)', borderRadius: 2, margin: '0 auto 20px' },
+  modal: { borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, padding: '20px 16px 36px' },
+  handle: { width: 36, height: 4, borderRadius: 2, margin: '0 auto 20px' },
   modalTitle: { fontSize: 17, fontWeight: 700, marginBottom: 16 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 8, border: '1px solid rgba(0,0,0,0.14)', background: 'none', fontSize: 15, fontWeight: 500, cursor: 'pointer' },
-  toast: { position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: '#1a1916', color: 'white', padding: '10px 20px', borderRadius: 20, fontSize: 14, fontWeight: 500, zIndex: 300, whiteSpace: 'nowrap' },
-  empty: { textAlign: 'center', padding: '48px 32px', color: '#9e9b95', fontSize: 14 },
+  toast: { position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '10px 20px', borderRadius: 20, fontSize: 14, fontWeight: 500, zIndex: 300, whiteSpace: 'nowrap' },
+  empty: { textAlign: 'center', padding: '48px 32px', fontSize: 14 },
 };
 
 function GridIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>; }
