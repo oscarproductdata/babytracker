@@ -14,12 +14,6 @@ export default function RootLayout({ children }) {
         <style>{`
           html, body {
             touch-action: pan-x pan-y;
-            overflow: hidden;
-          }
-          #__next, [data-nextjs-scroll-focus-boundary] {
-            height: 100%;
-            overflow-y: auto;
-            touch-action: pan-x pan-y;
           }
         `}</style>
       </head>
