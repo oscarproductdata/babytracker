@@ -3,18 +3,11 @@ import { getSheet, SHEET_ID, SHEET_NAME } from "@/lib/sheets";
 
 function parseSheetDate(val) {
   if (!val) return NaN;
-  // If it's a number, it's a Google Sheets serial date
   const num = parseFloat(val);
-  if (!isNaN(num) && num > 1000) {
-    // Google Sheets epoch is December 30, 1899
-    return new Date((num - 25569) * 86400 * 1000).getTime();
+  if (!isNaN(num) && num > 40000) {
+    // Google Sheets serial: days since Dec 30 1899
+    return Math.round((num - 25569) * 86400 * 1000);
   }
-  // Try replacing dots with colons for time part
-  const fixed = String(val)
-    .replace(/^(\d{2})-(\d{2})-(\d{2})/, '20$3-$2-$1')
-    .replace(/(\d{2})\.(\d{2})(\.(\d{2}))?$/, '$1:$2:00');
-  const d = new Date(fixed);
-  if (!isNaN(d.getTime())) return d.getTime();
   return NaN;
 }
 
@@ -27,6 +20,7 @@ export async function GET(request) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_NAME}!A2:F1000`,
+      valueRenderOption: "UNFORMATTED_VALUE",
     });
 
     const rows = res.data.values || [];
