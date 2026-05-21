@@ -5,15 +5,12 @@ function parseSheetDate(val) {
   if (!val) return NaN;
   const num = parseFloat(val);
   if (!isNaN(num) && num > 40000) {
-    // Sheet stores Stockholm local time as serial
-    // Convert to JS timestamp but subtract local timezone offset to keep it as Stockholm wall clock time
     const utcMs = (num - 25569) * 86400 * 1000;
-    const d = new Date(utcMs);
-    // Re-interpret as Stockholm local time
-    const stockholmOffset = new Date(utcMs).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', timeZoneName: 'short' });
-    const offsetMatch = stockholmOffset.match(/GMT([+-]\d+)/);
-    const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : 2;
-    return utcMs - (offsetHours * 3600 * 1000);
+    // Round to nearest minute to avoid floating point issues
+    const roundedMs = Math.round(utcMs / 60000) * 60000;
+    const offsetHours = new Date(roundedMs).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', timeZoneName: 'short' }).match(/GMT([+-]\d+)/)?.[1];
+    const offset = offsetHours ? parseInt(offsetHours) : 2;
+    return roundedMs - (offset * 3600 * 1000);
   }
   return NaN;
 }
@@ -92,10 +89,7 @@ export async function POST(request) {
               },
               cell: {
                 userEnteredFormat: {
-                  numberFormat: {
-                    type: "DATE_TIME",
-                    pattern: "yy-MM-dd HH.mm",
-                  }
+                  numberFormat: { type: "DATE_TIME", pattern: "yy-MM-dd HH.mm" }
                 }
               },
               fields: "userEnteredFormat.numberFormat",
