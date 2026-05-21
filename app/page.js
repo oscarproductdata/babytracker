@@ -531,10 +531,15 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
                   {emoji && <span>{emoji}</span>}
                   {name}
                 </span>
-                <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={async () => {
-                  const updated = categories.filter((_,j) => j !== i);
-                  setCategories(updated);
-                  await fetch('/api/categories', {
+                <button 
+                  style={{ ...S.logBtn, color: DEFAULT_CATEGORIES.some(d => d.name === name) ? 'rgba(0,0,0,0.15)' : THEME.textFaint }}
+                  disabled={DEFAULT_CATEGORIES.some(d => d.name === name)}
+                  onClick={async () => {
+                    if (DEFAULT_CATEGORIES.some(d => d.name === name)) return;
+                    if (!confirm(`Vill du verkligen ta bort "${name}"?`)) return;
+                    const updated = categories.filter((_,j) => j !== i);
+                    setCategories(updated);
+                    await fetch('/api/categories', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ categories: updated }),
