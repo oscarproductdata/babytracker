@@ -1,6 +1,6 @@
 "use client";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const TIMEZONE = "Europe/Stockholm";
 
@@ -40,8 +40,107 @@ function toDatetimeLocal(ts) {
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
-function nowStockholm() {
-  return toDatetimeLocal(Date.now());
+function nowStockholm() { return toDatetimeLocal(Date.now()); }
+
+function TrendChart({ entries, categories }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  const [activeCat, setActiveCat] = useState('Ersättning');
+  const chartCats = categories.filter(c => c !== 'Vikt');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!window.Chart) return;
+    if (!canvasRef.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+
+    const days = 7;
+    const labels = [];
+    const data = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: TIMEZONE });
+      labels.push(dateStr);
+      const start = new Date(d.toLocaleDateString('sv-SE', { timeZone: TIMEZONE })).getTime();
+      const end = start + 86400000;
+      const dayEntries = entries.filter(e => e.what === activeCat && e.time >= start && e.time < end);
+      const total = dayEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+      data.push(total || dayEntries.length);
+    }
+
+    const color = getColor(activeCat);
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: color + '99', borderColor: color, borderWidth: 1.5, borderRadius: 6 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true }
+        }
+      }
+    });
+  }, [activeCat, entries]);
+
+  return (
+    <div style={S.chartCard}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {chartCats.map(cat => (
+          <button key={cat} onClick={() => setActiveCat(cat)} style={{
+            fontSize: 12, padding: '5px 12px', borderRadius: 20,
+            border: '1px solid ' + (activeCat === cat ? getColor(cat) : 'rgba(0,0,0,0.14)'),
+            background: activeCat === cat ? getColor(cat) : 'none',
+            color: activeCat === cat ? 'white' : '#6b6860',
+            cursor: 'pointer'
+          }}>{cat}</button>
+        ))}
+      </div>
+      <div style={{ position: 'relative', height: 180 }}>
+        <canvas ref={canvasRef} role="img" aria-label="Trendgraf" />
+      </div>
+    </div>
+  );
+}
+
+function WeightChart({ entries }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!window.Chart) return;
+    if (!canvasRef.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+
+    const weightData = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a, b) => a.time - b.time);
+    if (!weightData.length) return;
+
+    const labels = weightData.map(e => new Date(e.time).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', timeZone: TIMEZONE }));
+    const data = weightData.map(e => parseFloat(e.amount));
+
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'line',
+      data: { labels, datasets: [{ data, borderColor: '#1d4ed8', backgroundColor: 'rgba(29,78,216,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#1d4ed8', tension: 0.3, fill: true }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#9e9b95', font: { size: 11 }, maxRotation: 45 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { ticks: { color: '#9e9b95', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+  }, [entries]);
+
+  return (
+    <div style={S.chartCard}>
+      <div style={{ position: 'relative', height: 180 }}>
+        <canvas ref={canvasRef} role="img" aria-label="Viktutveckling" />
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -53,6 +152,18 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [editEntry, setEditEntry] = useState(null);
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
+  const [chartJsLoaded, setChartJsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.Chart) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      script.onload = () => setChartJsLoaded(true);
+      document.head.appendChild(script);
+    } else if (window.Chart) {
+      setChartJsLoaded(true);
+    }
+  }, []);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -67,9 +178,7 @@ export default function App() {
   useEffect(() => { if (session) fetchEntries(); }, [session, fetchEntries]);
 
   useEffect(() => {
-    if (page === 'add') {
-      setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
-    }
+    if (page === 'add') setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
   }, [page]);
 
   if (status === 'loading') return <Loading />;
@@ -88,13 +197,8 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: form.what, time: new Date(form.time).getTime(), amount: form.amount, unit: form.unit }),
     });
-    if (res.ok) {
-      showToast('Sparad ✓');
-      await fetchEntries();
-      setPage('dashboard');
-    } else {
-      showToast('Något gick fel');
-    }
+    if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
+    else showToast('Något gick fel');
   };
 
   const saveEdit = async () => {
@@ -116,7 +220,7 @@ export default function App() {
 
   return (
     <div style={S.app}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} chartJsLoaded={chartJsLoaded} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} categories={categories} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} />}
@@ -179,7 +283,7 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories }) {
+function Dashboard({ entries, loading, categories, chartJsLoaded }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const trackCats = categories.filter(c => c !== 'Vikt');
@@ -222,6 +326,19 @@ function Dashboard({ entries, loading, categories }) {
           })}
         </div>
       )}
+
+      {chartJsLoaded && entries.length > 0 && (
+        <>
+          <div style={{ padding: '0 16px 8px' }}>
+            <div style={S.sectionTitle}>Trend senaste 7 dagarna</div>
+            <TrendChart entries={entries} categories={categories} />
+          </div>
+          <div style={{ padding: '0 16px 16px' }}>
+            <div style={S.sectionTitle}>Vikt</div>
+            <WeightChart entries={entries} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -250,9 +367,7 @@ function Log({ entries, onEdit }) {
                   <div style={{ fontSize: 12, color: '#6b6860', marginTop: 2 }}>{e.amount ? e.amount + ' ' + e.unit : '—'}</div>
                 </div>
                 <div style={{ fontSize: 12, color: '#9e9b95' }}>{formatTime(e.time)}</div>
-                <button style={S.logBtn} onClick={() => onEdit(e)}>
-                  <EditIcon />
-                </button>
+                <button style={S.logBtn} onClick={() => onEdit(e)}><EditIcon /></button>
               </div>
             </div>
           );
@@ -400,11 +515,13 @@ const S = {
   header: { padding: '56px 20px 16px' },
   h1: { fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', margin: 0 },
   sub: { fontSize: 14, color: '#6b6860', marginTop: 2 },
+  sectionTitle: { fontSize: 13, fontWeight: 600, color: '#9e9b95', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
   nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'white', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
   navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em', transition: 'color 0.15s' },
   navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   summaryCard: { background: 'white', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(0,0,0,0.08)' },
+  chartCard: { background: 'white', borderRadius: 14, padding: 16, border: '1px solid rgba(0,0,0,0.08)', marginBottom: 16 },
   formCard: { background: 'white', borderRadius: 14, border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' },
   formRow: { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   input: { flex: 1, background: 'none', border: 'none', fontSize: 14, color: '#1a1916', textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
