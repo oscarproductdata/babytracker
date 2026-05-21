@@ -10,9 +10,12 @@ function parseSheetDate(val) {
   return NaN;
 }
 
-function toSheetSerial(ts) {
-  // Convert JS timestamp to Google Sheets serial number
-  return (ts / 86400000) + 25569;
+function toStockholmSerial(ts) {
+  // Get Stockholm offset in ms
+  const stockholmStr = new Date(ts).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' });
+  const stockholmDate = new Date(stockholmStr);
+  const serial = (stockholmDate.getTime() / 86400000) + 25569 + (stockholmDate.getTimezoneOffset() / 1440);
+  return serial;
 }
 
 export async function GET(request) {
@@ -53,7 +56,7 @@ export async function POST(request) {
   try {
     const { what, time, amount, unit } = await request.json();
     const sheets = await getSheet();
-    const serial = toSheetSerial(time);
+    const serial = toStockholmSerial(time);
 
     const appendRes = await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
