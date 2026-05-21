@@ -8,13 +8,14 @@ function toStockholmSerial(ts) {
   return serial;
 }
 
-export async function PUT(request, { params }) {
+export async function PUT(request, context) {
   const session = await getServerSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const { id } = await context.params;
+    const row = parseInt(id);
     const { what, time, amount, unit } = await request.json();
-    const row = parseInt(params.id);
     const sheets = await getSheet();
     const serial = toStockholmSerial(time);
 
@@ -27,7 +28,6 @@ export async function PUT(request, { params }) {
       },
     });
 
-    // Format the timestamp cell
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SHEET_ID,
       requestBody: {
@@ -60,12 +60,13 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   const session = await getServerSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const row = parseInt(params.id);
+    const { id } = await context.params;
+    const row = parseInt(id);
     const sheets = await getSheet();
 
     await sheets.spreadsheets.values.clear({
