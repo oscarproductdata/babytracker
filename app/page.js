@@ -179,6 +179,7 @@ export default function App() {
   const [editEntry, setEditEntry] = useState(null);
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Chart) {
@@ -215,35 +216,41 @@ export default function App() {
 
   const submitEntry = async () => {
     if (!form.what || !form.time) { showToast('Välj kategori och tid'); return; }
+    setSaving(true);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: form.what, time: new Date(form.time).getTime(), amount: form.amount, unit: form.unit }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
     else showToast('Något gick fel');
+    setSaving(false);
   };
 
   const saveEdit = async () => {
+    setSaving(true);
     const res = await fetch('/api/entries/' + editEntry.id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setEditEntry(null); }
     else showToast('Något gick fel');
+    setSaving(false);
   };
 
   const deleteEntry = async () => {
     if (!confirm('Radera denna post?')) return;
+    setSaving(true);
     const res = await fetch('/api/entries/' + editEntry.id, { method: 'DELETE' });
     if (res.ok) { showToast('Raderad'); await fetchEntries(); setEditEntry(null); }
     else showToast('Något gick fel');
+    setSaving(false);
   };
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} chartJsLoaded={chartJsLoaded} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} categories={categories} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} categories={categories} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} session={session} onSignOut={() => signOut()} />}
 
@@ -293,7 +300,9 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <button style={{ ...S.modalBtn, color: THEME.danger }} onClick={deleteEntry}>Radera</button>
-              <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent }} onClick={saveEdit}>Spara</button>
+              <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={saveEdit} disabled={saving}>
+                {saving ? 'Sparar...' : 'Spara'}
+              </button>
             </div>
           </div>
         </div>
@@ -342,7 +351,10 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border }}>
-                  {total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h'}
+                {cat === 'Bajs' || cat === 'Kiss'
+                  ? (last24.length > 0 ? `24h: ${last24.length} st` : 'Inget senaste 24h')
+                  : (total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h')
+                }
                 </div>
               </div>
             );
@@ -401,7 +413,7 @@ function Log({ entries, onEdit }) {
   );
 }
 
-function AddForm({ form, setForm, categories, onCategoryChange, onSubmit }) {
+function AddForm({ form, setForm, categories, onCategoryChange, onSubmit, saving }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
@@ -428,7 +440,9 @@ function AddForm({ form, setForm, categories, onCategoryChange, onSubmit }) {
             </select>
           </FormRow>
         </div>
-        <button style={{ ...S.submitBtn, background: THEME.accent }} onClick={onSubmit}>Spara post</button>
+        <button style={{ ...S.submitBtn, background: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={onSubmit} disabled={saving}>
+          {saving ? 'Sparar...' : 'Spara post'}
+        </button>
       </div>
     </div>
   );
