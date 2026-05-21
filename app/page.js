@@ -637,7 +637,7 @@ const S = {
   chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid rgba(0,0,0,0.08)' },
   formCard: { borderRadius: 14, overflow: 'hidden' },
   formRow: { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
-  input: { flex: 1, background: 'none', border: 'none', fontSize: 14, textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
+  input: { flex: 1, background: 'none', border: 'none', fontSize: 16, textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
   submitBtn: { width: '100%', padding: 16, color: 'white', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 12 },
   logItem: { borderRadius: 8, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 },
   logBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' },
