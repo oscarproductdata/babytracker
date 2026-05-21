@@ -216,7 +216,9 @@ export default function App() {
   }, []);
 
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); } }, [session, fetchEntries, fetchCategories]);
-  useEffect(() => { if (page === 'add') setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); }, [page]);
+  useEffect(() => { 
+    if (page === 'add' && !form.what) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); 
+  }, [page]);
 
   if (status === 'loading') return <Loading />;
   if (!session) return <Login />;
@@ -263,7 +265,11 @@ export default function App() {
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} onCategoryClick={(cat) => {
+        const unit = CATEGORY_UNITS[cat] || 'n/a';
+        setForm({ what: cat, time: nowStockholm(), amount: '', unit });
+        setPage('add');
+      }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
@@ -328,7 +334,7 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded }) {
+function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const trackCats = categories.filter(c => c.name !== 'Vikt');
@@ -358,7 +364,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded }) {
             const last24 = catEntries.filter(e => Date.now() - e.time < 86400000);
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
-              <div key={name} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
+              <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
                 <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                   {displayCat(name, emojiMap)}
                 </div>
