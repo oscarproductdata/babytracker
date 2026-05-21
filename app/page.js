@@ -4,9 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const TIMEZONE = "Europe/Stockholm";
 
-// ============================================================
-// THEME — edit here to change colors across the whole app
-// ============================================================
 const THEME = {
   bg:          '#f8f7f4',
   bg2:         '#ffffff',
@@ -28,23 +25,25 @@ const THEME = {
     'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
   },
   categoryDefault: { base: '#6b6860', chart: 'rgba(107,104,96,0.25)', card: '#f1efe8', text: '#44403c' },
-  categoryEmoji: {
-    'Ersättning': '🍼',
-    'Amning':     '🤱',
-    'Vikt':       '⚖️',
-    'Bajs':       '💩',
-    'Kiss':       '💧',
-  },
 };
 
 function getCat(cat) { return THEME.categories[cat] || THEME.categoryDefault; }
-function getEmoji(cat) { return THEME.categoryEmoji[cat] ? `${THEME.categoryEmoji[cat]} ` : ''; }
-function displayCat(cat) { return `${getEmoji(cat)}${cat}`; }
+function displayCat(cat, emojiMap) {
+  const emoji = emojiMap?.[cat];
+  return emoji ? `${emoji} ${cat}` : cat;
+}
 
 const CATEGORY_UNITS = {
   'Ersättning': 'ml', 'Amning': 'min', 'Vikt': 'gram', 'Bajs': 'n/a', 'Kiss': 'n/a',
 };
-const DEFAULT_CATEGORIES = ['Amning', 'Vikt', 'Bajs', 'Kiss', 'Ersättning'];
+
+const DEFAULT_CATEGORIES = [
+  { name: 'Amning', emoji: '🤱' },
+  { name: 'Vikt', emoji: '⚖️' },
+  { name: 'Bajs', emoji: '💩' },
+  { name: 'Kiss', emoji: '💧' },
+  { name: 'Ersättning', emoji: '🍼' },
+];
 
 function timeSince(ts) {
   const mins = Math.floor((Date.now() - ts) / 60000);
@@ -73,11 +72,11 @@ function toDatetimeLocal(ts) {
 
 function nowStockholm() { return toDatetimeLocal(Date.now()); }
 
-function TrendChart({ entries, categories }) {
+function TrendChart({ entries, categories, emojiMap }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
-  const chartCats = categories.filter(c => c !== 'Vikt');
-  const [activeCat, setActiveCat] = useState(chartCats[0] || 'Ersättning');
+  const chartCats = categories.filter(c => c.name !== 'Vikt');
+  const [activeCat, setActiveCat] = useState(chartCats[0]?.name || 'Amning');
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
@@ -113,17 +112,17 @@ function TrendChart({ entries, categories }) {
   return (
     <div style={S.chartCard}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        {chartCats.map(cat => {
-          const c = getCat(cat);
-          const isActive = activeCat === cat;
+        {chartCats.map(c => {
+          const theme = getCat(c.name);
+          const isActive = activeCat === c.name;
           return (
-            <button key={cat} onClick={() => setActiveCat(cat)} style={{
+            <button key={c.name} onClick={() => setActiveCat(c.name)} style={{
               fontSize: 12, padding: '5px 12px', borderRadius: 20,
-              border: '1px solid ' + (isActive ? c.base : THEME.borderHover),
-              background: isActive ? c.base : 'none',
+              border: '1px solid ' + (isActive ? theme.base : THEME.borderHover),
+              background: isActive ? theme.base : 'none',
               color: isActive ? 'white' : THEME.textMuted,
               cursor: 'pointer',
-            }}>{displayCat(cat)}</button>
+            }}>{displayCat(c.name, emojiMap)}</button>
           );
         })}
       </div>
@@ -175,11 +174,14 @@ export default function App() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [toast, setToast] = useState('');
   const [editEntry, setEditEntry] = useState(null);
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const emojiMap = Object.fromEntries(categories.map(c => [c.name, c.emoji]));
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Chart) {
@@ -202,11 +204,24 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { if (session) fetchEntries(); }, [session, fetchEntries]);
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch('/api/categories');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length) setCategories(data);
+      }
+    } catch(e) { console.error(e); }
+    setCategoriesLoaded(true);
+  }, []);
+
+  useEffect(() => { if (session) { fetchEntries(); fetchCategories(); } }, [session, fetchEntries, fetchCategories]);
   useEffect(() => { if (page === 'add') setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); }, [page]);
 
   if (status === 'loading') return <Loading />;
   if (!session) return <Login />;
+
+  const catNames = categories.map(c => c.name);
 
   const handleCategoryChange = (cat, isEdit = false) => {
     const unit = CATEGORY_UNITS[cat] || 'n/a';
@@ -248,11 +263,11 @@ export default function App() {
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} chartJsLoaded={chartJsLoaded} />}
-      {page === 'log' && <Log entries={entries} onEdit={setEditEntry} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} categories={categories} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
-      {page === 'stats' && <Stats entries={entries} categories={categories} />}
-      {page === 'settings' && <Settings categories={categories} setCategories={setCategories} session={session} onSignOut={() => signOut()} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} />}
+      {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
+      {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
+      {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
       <nav style={{ ...S.nav, background: THEME.bg2, borderTop: '1px solid ' + THEME.border }}>
         {[
@@ -283,7 +298,7 @@ export default function App() {
             <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
               <FormRow label="Kategori">
                 <select style={{ ...S.input, color: THEME.text }} value={editEntry.what} onChange={e => handleCategoryChange(e.target.value, true)}>
-                  {categories.map(c => <option key={c} value={c}>{displayCat(c)}</option>)}
+                  {catNames.map(c => <option key={c} value={c}>{displayCat(c, emojiMap)}</option>)}
                 </select>
               </FormRow>
               <FormRow label="Tid">
@@ -313,10 +328,10 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, chartJsLoaded }) {
+function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
-  const trackCats = categories.filter(c => c !== 'Vikt');
+  const trackCats = categories.filter(c => c.name !== 'Vikt');
   const viktCat = getCat('Vikt');
 
   return (
@@ -328,7 +343,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
 
       {weightEntries.length > 0 && (
         <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
-          <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayCat('Vikt')}</div>
+          <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayCat('Vikt', emojiMap)}</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
           <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
         </div>
@@ -336,25 +351,24 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
 
       {loading ? <div style={{ ...S.empty, color: THEME.textFaint }}>Laddar...</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
-          {trackCats.map(cat => {
-            const c = getCat(cat);
-            const catEntries = entries.filter(e => e.what === cat).sort((a,b) => b.time - a.time);
+          {trackCats.map(({ name }) => {
+            const c = getCat(name);
+            const catEntries = entries.filter(e => e.what === name).sort((a,b) => b.time - a.time);
             const last = catEntries[0];
             const last24 = catEntries.filter(e => Date.now() - e.time < 86400000);
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
-              <div key={cat} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
-                <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {/*<span style={{ width: 7, height: 7, borderRadius: '50%', background: c.base, flexShrink: 0 }} /> */}
-                  {displayCat(cat)}
+              <div key={name} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                  {displayCat(name, emojiMap)}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border }}>
-                {cat === 'Bajs' || cat === 'Kiss'
-                  ? (last24.length > 0 ? `24h: ${last24.length} st` : 'Inget senaste 24h')
-                  : (total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h')
-                }
+                  {name === 'Bajs' || name === 'Kiss'
+                    ? (last24.length > 0 ? `24h: ${last24.length} st` : 'Inget senaste 24h')
+                    : (total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h')
+                  }
                 </div>
               </div>
             );
@@ -366,10 +380,10 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
         <>
           <div style={{ padding: '0 16px 8px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
-            <TrendChart entries={entries} categories={categories} />
+            <TrendChart entries={entries} categories={categories} emojiMap={emojiMap} />
           </div>
           <div style={{ padding: '0 16px 16px' }}>
-            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>{displayCat('Vikt')}</div>
+            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>{displayCat('Vikt', emojiMap)}</div>
             <WeightChart entries={entries} />
           </div>
         </>
@@ -378,7 +392,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
   );
 }
 
-function Log({ entries, onEdit }) {
+function Log({ entries, onEdit, emojiMap }) {
   let currentDate = '';
   return (
     <div style={S.page}>
@@ -399,7 +413,7 @@ function Log({ entries, onEdit }) {
               <div style={{ ...S.logItem, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{displayCat(e.what)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{displayCat(e.what, emojiMap)}</div>
                   <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>{e.amount ? e.amount + ' ' + e.unit : '—'}</div>
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textFaint }}>{formatTime(e.time)}</div>
@@ -413,7 +427,7 @@ function Log({ entries, onEdit }) {
   );
 }
 
-function AddForm({ form, setForm, categories, onCategoryChange, onSubmit, saving }) {
+function AddForm({ form, setForm, catNames, emojiMap, onCategoryChange, onSubmit, saving }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
@@ -425,7 +439,7 @@ function AddForm({ form, setForm, categories, onCategoryChange, onSubmit, saving
           <FormRow label="Kategori">
             <select style={{ ...S.input, color: THEME.text }} value={form.what} onChange={e => onCategoryChange(e.target.value)}>
               <option value="">Välj...</option>
-              {categories.map(c => <option key={c} value={c}>{displayCat(c)}</option>)}
+              {catNames.map(c => <option key={c} value={c}>{displayCat(c, emojiMap)}</option>)}
             </select>
           </FormRow>
           <FormRow label="Tid">
@@ -448,7 +462,7 @@ function AddForm({ form, setForm, categories, onCategoryChange, onSubmit, saving
   );
 }
 
-function Stats({ entries, categories }) {
+function Stats({ entries, categories, emojiMap }) {
   const now = Date.now();
   return (
     <div style={S.page}>
@@ -457,17 +471,17 @@ function Stats({ entries, categories }) {
         <p style={{ ...S.sub, color: THEME.textMuted }}>Senaste 24 timmar</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        {categories.map(cat => {
-          const c = getCat(cat);
-          const last24 = entries.filter(e => e.what === cat && now - e.time < 86400000);
+        {categories.map(({ name }) => {
+          const c = getCat(name);
+          const last24 = entries.filter(e => e.what === name && now - e.time < 86400000);
           const total = last24.reduce((s,e) => s+(parseFloat(e.amount)||0), 0);
-          const lastEntry = entries.filter(e => e.what === cat).sort((a,b) => b.time - a.time)[0];
+          const lastEntry = entries.filter(e => e.what === name).sort((a,b) => b.time - a.time)[0];
           return (
-            <div key={cat} style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 10 }}>
+            <div key={name} style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 10 }}>
               <div style={{ ...S.formRow, borderBottom: '1px solid ' + THEME.border }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: THEME.text }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
-                  {displayCat(cat)}
+                  {displayCat(name, emojiMap)}
                 </span>
                 <span style={{ fontSize: 14, color: THEME.textMuted }}>{last24.length} st</span>
               </div>
@@ -481,11 +495,23 @@ function Stats({ entries, categories }) {
   );
 }
 
-function Settings({ categories, setCategories, session, onSignOut }) {
-  const addCat = () => {
-    const name = prompt('Namn på ny kategori:');
-    if (!name?.trim()) return;
-    setCategories(c => [...c, name.trim()]);
+function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
+  const [newName, setNewName] = useState('');
+  const [newEmoji, setNewEmoji] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+
+  const addCat = async () => {
+    if (!newName.trim()) return;
+    const updated = [...categories, { name: newName.trim(), emoji: newEmoji.trim() }];
+    setCategories(updated);
+    setNewName('');
+    setNewEmoji('');
+    setShowAdd(false);
+    await fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories: updated }),
+    });
   };
   return (
     <div style={S.page}>
@@ -496,20 +522,44 @@ function Settings({ categories, setCategories, session, onSignOut }) {
       <div style={{ padding: '0 16px' }}>
         <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Kategorier</div>
         <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
-          {categories.map((cat, i) => {
-            const c = getCat(cat);
+          {categories.map(({ name, emoji }, i) => {
+            const c = getCat(name);
             return (
-              <div key={cat} style={{ ...S.formRow, borderBottom: i < categories.length-1 ? '1px solid ' + THEME.border : 'none' }}>
+              <div key={name} style={{ ...S.formRow, borderBottom: i < categories.length-1 ? '1px solid ' + THEME.border : 'none' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.text }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
-                  {displayCat(cat)}
+                  {emoji && <span>{emoji}</span>}
+                  {name}
                 </span>
-                <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={() => setCategories(c => c.filter((_,j) => j !== i))}>✕</button>
+                <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={async () => {
+                  const updated = categories.filter((_,j) => j !== i);
+                  setCategories(updated);
+                  await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categories: updated }),
+                  });
+                }}>✕</button>
               </div>
             );
           })}
         </div>
-        <button style={{ ...S.submitBtn, background: THEME.border, color: THEME.text, marginTop: 10 }} onClick={addCat}>+ Lägg till kategori</button>
+        {showAdd ? (
+          <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginTop: 10 }}>
+            <FormRow label="Namn">
+              <input style={{ ...S.input, color: THEME.text }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="t.ex. Sömn" />
+            </FormRow>
+            <FormRow label="Emoji" last>
+              <input style={{ ...S.input, color: THEME.text }} value={newEmoji} onChange={e => setNewEmoji(e.target.value)} placeholder="t.ex. 😴" />
+            </FormRow>
+            <div style={{ display: 'flex', gap: 10, padding: '12px 16px' }}>
+              <button style={{ ...S.modalBtn, color: THEME.textMuted }} onClick={() => setShowAdd(false)}>Avbryt</button>
+              <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent }} onClick={addCat}>Spara</button>
+            </div>
+          </div>
+        ) : (
+          <button style={{ ...S.submitBtn, background: THEME.border, color: THEME.text, marginTop: 10 }} onClick={() => setShowAdd(true)}>+ Lägg till kategori</button>
+        )}
         <div style={{ marginTop: 24 }}>
           <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Konto</div>
           <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
@@ -583,5 +633,5 @@ function GridIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fil
 function LogIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>; }
 function PlusIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>; }
 function StatsIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>; }
-function SettingsIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>; }
+function SettingsIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>; }
 function EditIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>; }
