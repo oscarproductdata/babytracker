@@ -5,13 +5,20 @@ function parseSheetDate(val) {
   if (!val) return NaN;
   const num = parseFloat(val);
   if (!isNaN(num) && num > 40000) {
-    return Math.round((num - 25569) * 86400 * 1000);
+    // Sheet stores Stockholm local time as serial
+    // Convert to JS timestamp but subtract local timezone offset to keep it as Stockholm wall clock time
+    const utcMs = (num - 25569) * 86400 * 1000;
+    const d = new Date(utcMs);
+    // Re-interpret as Stockholm local time
+    const stockholmOffset = new Date(utcMs).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', timeZoneName: 'short' });
+    const offsetMatch = stockholmOffset.match(/GMT([+-]\d+)/);
+    const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : 2;
+    return utcMs - (offsetHours * 3600 * 1000);
   }
   return NaN;
 }
 
 function toStockholmSerial(ts) {
-  // Get Stockholm offset in ms
   const stockholmStr = new Date(ts).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' });
   const stockholmDate = new Date(stockholmStr);
   const serial = (stockholmDate.getTime() / 86400000) + 25569 + (stockholmDate.getTimezoneOffset() / 1440);
@@ -67,7 +74,6 @@ export async function POST(request) {
       },
     });
 
-    // Format the timestamp cell as date+time
     const updatedRange = appendRes.data.updates.updatedRange;
     const rowMatch = updatedRange.match(/(\d+)$/);
     if (rowMatch) {
