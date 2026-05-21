@@ -8,54 +8,43 @@ const TIMEZONE = "Europe/Stockholm";
 // THEME — edit here to change colors across the whole app
 // ============================================================
 const THEME = {
-  // App background and surfaces
   bg:          '#f8f7f4',
   bg2:         '#ffffff',
   border:      'rgba(0,0,0,0.08)',
   borderHover: 'rgba(0,0,0,0.14)',
-
-  // Text
   text:        '#1a1916',
   textMuted:   '#6b6860',
   textFaint:   '#9e9b95',
-
-  // Primary action color (buttons, nav active)
   accent:      '#2d6a4f',
   accentDark:  '#1b4332',
-
-  // Danger
   danger:      '#c0392b',
-
-  // Chart grid
   chartGrid:   'rgba(0,0,0,0.05)',
   chartTick:   '#9e9b95',
-
-  // Category colors — each has:
-  //   base:    main color (dot, border, active button)
-  //   chart:   bar/line fill (semi-transparent)
-  //   card:    card background tint
-  //   text:    text on card background
   categories: {
     'Ersättning': { base: '#009855', chart: 'rgba(0,152,85,0.25)',   card: '#e8f4ee', text: '#1b4332' },
     'Amning':     { base: '#E7005D', chart: 'rgba(231,0,93,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
-    'Vikt':       { base: '#0C79DE', chart: 'rgba(12,121,222,0.25)',   card: '#E6F3FF', text: '#0068C8' },
-    'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',    card: '#fef3c7', text: '#78350f' },
-    'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',   card: '#fefce8', text: '#713f12' },
+    'Vikt':       { base: '#0C79DE', chart: 'rgba(12,121,222,0.25)', card: '#E6F3FF', text: '#0068C8' },
+    'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',   card: '#fef3c7', text: '#78350f' },
+    'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
   },
-
-  // Fallback for unknown categories
   categoryDefault: { base: '#6b6860', chart: 'rgba(107,104,96,0.25)', card: '#f1efe8', text: '#44403c' },
+  categoryEmoji: {
+    'Ersättning': '🍼',
+    'Amning':     '🤱',
+    'Vikt':       '⚖️',
+    'Bajs':       '💩',
+    'Kiss':       '💧',
+  },
 };
 
-// Helper to get category theme, with fallback
-function getCat(cat) {
-  return THEME.categories[cat] || THEME.categoryDefault;
-}
+function getCat(cat) { return THEME.categories[cat] || THEME.categoryDefault; }
+function getEmoji(cat) { return THEME.categoryEmoji[cat] ? `${THEME.categoryEmoji[cat]} ` : ''; }
+function displayCat(cat) { return `${getEmoji(cat)}${cat}`; }
 
 const CATEGORY_UNITS = {
   'Ersättning': 'ml', 'Amning': 'min', 'Vikt': 'gram', 'Bajs': 'n/a', 'Kiss': 'n/a',
 };
-const DEFAULT_CATEGORIES = ['Ersättning', 'Amning', 'Vikt', 'Bajs', 'Kiss'];
+const DEFAULT_CATEGORIES = ['Amning', 'Vikt', 'Bajs', 'Kiss', 'Ersättning'];
 
 function timeSince(ts) {
   const mins = Math.floor((Date.now() - ts) / 60000);
@@ -93,7 +82,6 @@ function TrendChart({ entries, categories }) {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
-
     const days = 7;
     const labels = [];
     const data = [];
@@ -107,7 +95,6 @@ function TrendChart({ entries, categories }) {
       const total = dayEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
       data.push(total || dayEntries.length);
     }
-
     const cat = getCat(activeCat);
     chartRef.current = new window.Chart(canvasRef.current, {
       type: 'bar',
@@ -136,7 +123,7 @@ function TrendChart({ entries, categories }) {
               background: isActive ? c.base : 'none',
               color: isActive ? 'white' : THEME.textMuted,
               cursor: 'pointer',
-            }}>{cat}</button>
+            }}>{displayCat(cat)}</button>
           );
         })}
       </div>
@@ -155,13 +142,10 @@ function WeightChart({ entries }) {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
-
     const weightData = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a, b) => a.time - b.time);
     if (!weightData.length) return;
-
     const labels = weightData.map(e => new Date(e.time).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', timeZone: TIMEZONE }));
     const data = weightData.map(e => parseFloat(e.amount));
-
     chartRef.current = new window.Chart(canvasRef.current, {
       type: 'line',
       data: { labels, datasets: [{ data, borderColor: cat.base, backgroundColor: cat.chart, borderWidth: 2, pointRadius: 4, pointBackgroundColor: cat.base, tension: 0.3, fill: true }] },
@@ -292,7 +276,7 @@ export default function App() {
             <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
               <FormRow label="Kategori">
                 <select style={{ ...S.input, color: THEME.text }} value={editEntry.what} onChange={e => handleCategoryChange(e.target.value, true)}>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c} value={c}>{displayCat(c)}</option>)}
                 </select>
               </FormRow>
               <FormRow label="Tid">
@@ -335,7 +319,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
 
       {weightEntries.length > 0 && (
         <div style={{ background: viktCat.card, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
-          <div style={{ fontSize: 11, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Senaste vikt</div>
+          <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayCat('Vikt')}</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: viktCat.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
           <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
         </div>
@@ -351,9 +335,9 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
               <div key={cat} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
-                <div style={{ fontSize: 11, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
-                  {cat}
+                  {displayCat(cat)}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
@@ -373,7 +357,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
             <TrendChart entries={entries} categories={categories} />
           </div>
           <div style={{ padding: '0 16px 16px' }}>
-            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Vikt</div>
+            <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>{displayCat('Vikt')}</div>
             <WeightChart entries={entries} />
           </div>
         </>
@@ -403,7 +387,7 @@ function Log({ entries, onEdit }) {
               <div style={{ ...S.logItem, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{e.what}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{displayCat(e.what)}</div>
                   <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>{e.amount ? e.amount + ' ' + e.unit : '—'}</div>
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textFaint }}>{formatTime(e.time)}</div>
@@ -429,7 +413,7 @@ function AddForm({ form, setForm, categories, onCategoryChange, onSubmit }) {
           <FormRow label="Kategori">
             <select style={{ ...S.input, color: THEME.text }} value={form.what} onChange={e => onCategoryChange(e.target.value)}>
               <option value="">Välj...</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              {categories.map(c => <option key={c} value={c}>{displayCat(c)}</option>)}
             </select>
           </FormRow>
           <FormRow label="Tid">
@@ -469,7 +453,7 @@ function Stats({ entries, categories }) {
               <div style={{ ...S.formRow, borderBottom: '1px solid ' + THEME.border }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: THEME.text }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
-                  {cat}
+                  {displayCat(cat)}
                 </span>
                 <span style={{ fontSize: 14, color: THEME.textMuted }}>{last24.length} st</span>
               </div>
@@ -504,7 +488,7 @@ function Settings({ categories, setCategories, session, onSignOut }) {
               <div key={cat} style={{ ...S.formRow, borderBottom: i < categories.length-1 ? '1px solid ' + THEME.border : 'none' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.text }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
-                  {cat}
+                  {displayCat(cat)}
                 </span>
                 <button style={{ ...S.logBtn, color: THEME.textFaint }} onClick={() => setCategories(c => c.filter((_,j) => j !== i))}>✕</button>
               </div>
