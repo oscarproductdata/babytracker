@@ -15,13 +15,17 @@ export async function GET(request) {
     const rows = res.data.values || [];
     const entries = rows
       .filter(r => r[1] && r[2])
-      .map((r, i) => ({
-        id: i + 2,
-        what: r[1] || "",
-        time: new Date(r[2]).getTime(),
-        amount: r[3] || null,
-        unit: r[5] || "n/a",
-      }))
+      .map((r, i) => {
+        const rawTime = (r[2] || "").replace(/(\d{2})\.(\d{2})\.?(\d{2})?$/, (_, h, m) => `${h}:${m}:00`);
+        return {
+          id: i + 2,
+          what: r[1] || "",
+          time: new Date(rawTime).getTime(),
+          amount: r[3] || null,
+          unit: r[5] || "n/a",
+        };
+      })
+      .filter(e => !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
 
     return Response.json(entries);
