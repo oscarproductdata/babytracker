@@ -9,12 +9,12 @@ export async function GET() {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `categories!A:B`,
+      range: `categories!A:C`,
     });
     const rows = res.data.values || [];
     const categories = rows
-      .filter(r => r[0])
-      .map(r => ({ name: r[0], emoji: r[1] || '' }));
+        .filter(r => r[0])
+        .map(r => ({ name: r[0], emoji: r[1] || '', unit: r[2] || 'n/a' }));
     return Response.json(categories);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
@@ -31,7 +31,7 @@ export async function POST(request) {
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SHEET_ID,
-      range: `categories!A:B`,
+      range: `categories!A:C`,
     });
 
     await sheets.spreadsheets.values.update({
@@ -39,7 +39,7 @@ export async function POST(request) {
       range: `categories!A1`,
       valueInputOption: "RAW",
       requestBody: {
-        values: categories.map(c => [c.name, c.emoji || '']),
+        values: categories.map(c => [c.name, c.emoji || '', c.unit || 'n/a']),
       },
     });
 

@@ -33,16 +33,15 @@ function displayCat(cat, emojiMap) {
   return emoji ? `${emoji} ${cat}` : cat;
 }
 
-const CATEGORY_UNITS = {
-  'Ersättning': 'ml', 'Amning': 'min', 'Vikt': 'gram', 'Bajs': 'n/a', 'Kiss': 'n/a',
-};
+const CATEGORY_UNITS = {};
+
 
 const DEFAULT_CATEGORIES = [
-  { name: 'Amning', emoji: '🤱' },
-  { name: 'Vikt', emoji: '⚖️' },
-  { name: 'Bajs', emoji: '💩' },
-  { name: 'Kiss', emoji: '💧' },
-  { name: 'Ersättning', emoji: '🍼' },
+  { name: 'Amning', emoji: '🤱', unit: 'min' },
+  { name: 'Vikt', emoji: '⚖️', unit: 'gram' },
+  { name: 'Bajs', emoji: '💩', unit: 'n/a' },
+  { name: 'Kiss', emoji: '💧', unit: 'n/a' },
+  { name: 'Ersättning', emoji: '🍼', unit: 'ml' },
 ];
 
 function timeSince(ts) {
@@ -182,6 +181,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
 
   const emojiMap = Object.fromEntries(categories.map(c => [c.name, c.emoji]));
+  const unitMap = Object.fromEntries(categories.map(c => [c.name, c.unit || 'n/a']));
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Chart) {
@@ -226,7 +226,7 @@ export default function App() {
   const catNames = categories.map(c => c.name);
 
   const handleCategoryChange = (cat, isEdit = false) => {
-    const unit = CATEGORY_UNITS[cat] || 'n/a';
+    const unit = unitMap[cat] || 'n/a';
     if (isEdit) setEditEntry(e => ({ ...e, what: cat, unit }));
     else setForm(f => ({ ...f, what: cat, unit }));
   };
@@ -266,12 +266,12 @@ export default function App() {
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} onCategoryClick={(cat) => {
-        const unit = CATEGORY_UNITS[cat] || 'n/a';
+        const unit = unitMap[cat] || 'n/a';
         setForm({ what: cat, time: nowStockholm(), amount: '', unit });
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
@@ -315,7 +315,7 @@ export default function App() {
               </FormRow>
               <FormRow label="Enhet" last>
                 <select style={{ ...S.input, color: THEME.text }} value={editEntry.unit} onChange={e => setEditEntry(v => ({ ...v, unit: e.target.value }))}>
-                  {['n/a','ml','min','gram'].map(u => <option key={u} value={u}>{u}</option>)}
+                  {['n/a','ml','min','gram','cm','st'].map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </FormRow>
             </div>
@@ -433,7 +433,7 @@ function Log({ entries, onEdit, emojiMap }) {
   );
 }
 
-function AddForm({ form, setForm, catNames, emojiMap, onCategoryChange, onSubmit, saving }) {
+function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving }) {
   return (
     <div style={S.page}>
       <div style={S.header}>
@@ -456,7 +456,9 @@ function AddForm({ form, setForm, catNames, emojiMap, onCategoryChange, onSubmit
           </FormRow>
           <FormRow label="Enhet" last>
             <select style={{ ...S.input, color: THEME.text }} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
-              {['n/a','ml','min','gram'].map(u => <option key={u} value={u}>{u}</option>)}
+              {['n/a','ml','min','gram','cm','st'].map(u => (
+                <option key={u} value={u}>{u}{form.what && unitMap[form.what] === u ? ' (standard)' : ''}</option>
+              ))}
             </select>
           </FormRow>
         </div>
@@ -505,14 +507,17 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [newUnit, setNewUnit] = useState('n/a');
+
 
   const addCat = async () => {
     if (!newName.trim()) return;
-    const updated = [...categories, { name: newName.trim(), emoji: newEmoji.trim() }];
+    const updated = [...categories, { name: newName.trim(), emoji: newEmoji.trim(), unit: newUnit }];
     setCategories(updated);
     setNewName('');
     setNewEmoji('');
     setShowAdd(false);
+    setNewUnit('n/a');
     await fetch('/api/categories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -560,8 +565,13 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
             <FormRow label="Namn">
               <input style={{ ...S.input, color: THEME.text }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="t.ex. Sömn" />
             </FormRow>
-            <FormRow label="Emoji" last>
+            <FormRow label="Emoji">
               <input style={{ ...S.input, color: THEME.text }} value={newEmoji} onChange={e => setNewEmoji(e.target.value)} placeholder="t.ex. 😴" />
+            </FormRow>
+            <FormRow label="Enhet" last>
+              <select style={{ ...S.input, color: THEME.text }} value={newUnit} onChange={e => setNewUnit(e.target.value)}>
+              {['n/a','ml','min','gram','cm','kg','st'].map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
             </FormRow>
             <div style={{ display: 'flex', gap: 10, padding: '12px 16px' }}>
               <button style={{ ...S.modalBtn, color: THEME.textMuted }} onClick={() => setShowAdd(false)}>Avbryt</button>
