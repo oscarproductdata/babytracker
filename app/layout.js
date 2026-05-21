@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="Babytracker" />
         <title>Babytracker</title>
       </head>
-      <body style={{ margin: 0, padding: 0 }}>
+      <body style={{ margin: 0, padding: 0 }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
