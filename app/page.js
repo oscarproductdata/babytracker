@@ -36,11 +36,11 @@ const THEME = {
   //   card:    card background tint
   //   text:    text on card background
   categories: {
-    'Ersättning': { base: '#2d6a4f', chart: 'rgba(45,106,79,0.25)',   card: '#e8f4ee', text: '#1b4332' },
-    'Amning':     { base: '#9d174d', chart: 'rgba(157,23,77,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
-    'Vikt':       { base: '#1d4ed8', chart: 'rgba(29,78,216,0.15)',   card: '#eff6ff', text: '#1e3a8a' },
-    'Bajs':       { base: '#b45309', chart: 'rgba(180,83,9,0.25)',    card: '#fef3c7', text: '#78350f' },
-    'Kiss':       { base: '#ca8a04', chart: 'rgba(202,138,4,0.25)',   card: '#fefce8', text: '#713f12' },
+    'Ersättning': { base: '#009855', chart: 'rgba(0,152,85,0.25)',   card: '#e8f4ee', text: '#1b4332' },
+    'Amning':     { base: '#E7005D', chart: 'rgba(231,0,93,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
+    'Vikt':       { base: '#0C79DE', chart: 'rgba(12,121,222,0.25)',   card: '#E6F3FF', text: '#0068C8' },
+    'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',    card: '#fef3c7', text: '#78350f' },
+    'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',   card: '#fefce8', text: '#713f12' },
   },
 
   // Fallback for unknown categories
@@ -336,7 +336,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
       {weightEntries.length > 0 && (
         <div style={{ background: viktCat.card, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
           <div style={{ fontSize: 11, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Senaste vikt</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: viktCat.base, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: viktCat.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
           <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
         </div>
       )}
