@@ -5,10 +5,14 @@ function parseSheetDate(val) {
   if (!val) return NaN;
   const num = parseFloat(val);
   if (!isNaN(num) && num > 40000) {
-    // Google Sheets serial: days since Dec 30 1899
     return Math.round((num - 25569) * 86400 * 1000);
   }
   return NaN;
+}
+
+function toSheetSerial(ts) {
+  // Convert JS timestamp to Google Sheets serial number
+  return (ts / 86400000) + 25569;
 }
 
 export async function GET(request) {
@@ -49,16 +53,48 @@ export async function POST(request) {
   try {
     const { what, time, amount, unit } = await request.json();
     const sheets = await getSheet();
-    const timestamp = new Date(time).toISOString();
+    const serial = toSheetSerial(time);
 
-    await sheets.spreadsheets.values.append({
+    const appendRes = await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_NAME}!A:F`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [["", what, timestamp, amount || "", "", unit || "n/a"]],
+        values: [["", what, serial, amount || "", "", unit || "n/a"]],
       },
     });
+
+    // Format the timestamp cell as date+time
+    const updatedRange = appendRes.data.updates.updatedRange;
+    const rowMatch = updatedRange.match(/(\d+)$/);
+    if (rowMatch) {
+      const rowIndex = parseInt(rowMatch[1]) - 1;
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: {
+          requests: [{
+            repeatCell: {
+              range: {
+                sheetId: 0,
+                startRowIndex: rowIndex,
+                endRowIndex: rowIndex + 1,
+                startColumnIndex: 2,
+                endColumnIndex: 3,
+              },
+              cell: {
+                userEnteredFormat: {
+                  numberFormat: {
+                    type: "DATE_TIME",
+                    pattern: "yy-MM-dd HH.mm",
+                  }
+                }
+              },
+              fields: "userEnteredFormat.numberFormat",
+            }
+          }]
+        }
+      });
+    }
 
     return Response.json({ success: true });
   } catch (e) {
