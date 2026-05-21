@@ -11,6 +11,17 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Babytracker" />
         <title>Babytracker</title>
+        <style>{`
+          html, body {
+            touch-action: pan-x pan-y;
+            overflow: hidden;
+          }
+          #__next, [data-nextjs-scroll-focus-boundary] {
+            height: 100%;
+            overflow-y: auto;
+            touch-action: pan-x pan-y;
+          }
+        `}</style>
       </head>
       <body style={{ margin: 0, padding: 0 }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
         <SessionProvider>{children}</SessionProvider>
