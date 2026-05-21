@@ -15,7 +15,7 @@ const THEME = {
   text:        '#1a1916',
   textMuted:   '#6b6860',
   textFaint:   '#9e9b95',
-  accent:      '#2d6a4f',
+  accent:      '#121212',
   accentDark:  '#1b4332',
   danger:      '#c0392b',
   chartGrid:   'rgba(0,0,0,0.05)',
@@ -327,9 +327,9 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
       </div>
 
       {weightEntries.length > 0 && (
-        <div style={{ background: viktCat.card, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
+        <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
           <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayCat('Vikt')}</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: viktCat.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
           <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
         </div>
       )}
@@ -345,7 +345,7 @@ function Dashboard({ entries, loading, categories, chartJsLoaded }) {
             return (
               <div key={cat} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
                 <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.base, flexShrink: 0 }} />
+                  {/*<span style={{ width: 7, height: 7, borderRadius: '50%', background: c.base, flexShrink: 0 }} /> */}
                   {displayCat(cat)}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
