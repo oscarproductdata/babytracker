@@ -264,7 +264,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [timers, setTimers] = useState({});
   const [birthTs, setBirthTs] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
@@ -393,6 +393,24 @@ export default function App() {
 
   const submitEntry = async () => {
     if (!form.what || !form.time) { showToast('Välj kategori och tid'); return; }
+    const currentTimer = timers[form.what];
+    if (currentTimer && currentTimer.elapsed > 0) {
+      const mins = Math.ceil(currentTimer.elapsed / 60);
+      const updatedForm = { ...form, amount: mins > 0 ? String(mins) : '1', time: nowStockholm() };
+      setForm(updatedForm);
+      clearInterval(currentTimer.interval);
+      setTimers(t => { const n = { ...t }; delete n[form.what]; return n; });
+      localStorage.removeItem('timer_' + form.what);
+      setSaving(true);
+      const res = await fetch('/api/entries', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ what: updatedForm.what, time: new Date(updatedForm.time).getTime(), amount: updatedForm.amount, unit: updatedForm.unit }),
+      });
+      if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
+      else showToast('Något gick fel');
+      setSaving(false);
+      return;
+    }
     setSaving(true);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
