@@ -22,6 +22,8 @@ export default function RootLayout({ children }) {
             --text-muted: #717171;
             --text-faint: #9e9b95;
             --press-bg: #efefec;
+            --nav-bg: rgba(248, 247, 244, 0.75);
+
           }
           @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
@@ -33,6 +35,7 @@ export default function RootLayout({ children }) {
               --text-muted: #a09d96;
               --text-faint: #6b6860;
               --press-bg: #2a2a26;
+              --nav-bg: rgba(20, 20, 18, 0.1);
             }
           }
           [data-theme="dark"] {

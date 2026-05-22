@@ -453,14 +453,14 @@ export default function App() {
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
-      <nav style={{ ...S.nav, background: THEME.bg2, borderTop: '1px solid ' + THEME.border }}>
+      <nav style={{ ...S.nav, background: 'var(--nav-bg)', borderTop: '1px solid ' + THEME.border, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
         {[
           { id: 'dashboard', icon: <GridIcon />, label: 'Översikt' },
           { id: 'log', icon: <LogIcon />, label: 'Logg' },
           { id: 'add', icon: null, label: '' },
           { id: 'stats', icon: <StatsIcon />, label: 'Statistik' },
           { id: 'settings', icon: <SettingsIcon />, label: 'Inställningar' },
-        ].map(({ id, icon, label }) => id === 'add' ? (
+        ].map(({ id, icon, label }, idx) => id === 'add' ? (
           <button key="add" style={S.navAdd} onClick={() => setPage('add')}>
             <div style={{ position: 'relative' }}>
               <div style={{ ...S.addCircle, background: page === 'add' ? THEME.accentDark : THEME.accent }}>
@@ -476,7 +476,7 @@ export default function App() {
             </div>
           </button>
         ) : (
-          <button key={id} style={{ ...S.navBtn, color: page === id ? THEME.accent : THEME.textFaint }} onClick={() => setPage(id)}>
+          <button key={id} style={{ ...S.navBtn, color: page === id ? THEME.accent : THEME.textFaint, paddingLeft: idx === 0 ? 20 : 4, paddingRight: idx === 4 ? 20 : 4 }} onClick={() => setPage(id)}>
             {icon}
             <span style={{ fontSize: 10 }}>{label}</span>
           </button>
@@ -974,9 +974,9 @@ const S = {
   h1: { fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', margin: 0 },
   sub: { fontSize: 14, marginTop: 2 },
   sectionTitle: { fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
-  nav: { position: 'fixed', bottom: 20, borderRadius: '20px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: 460, display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
-  navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em' },
-  navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
+  nav: { position: 'fixed', bottom: 20, borderRadius: '40px', left: '50%', transform: 'translateX(-50%)', width: '85%', maxWidth: 460, display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
+  navBtn: { flex: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em' },
+  navAdd: { flex: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 0px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   summaryCard: { borderRadius: 14, padding: '14px 16px', WebkitTapHighlightColor: 'transparent' },
   chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid var(--border)' },
