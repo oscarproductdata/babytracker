@@ -268,10 +268,31 @@ export default function App() {
   const [timerInterval, setTimerInterval] = useState(null);
   const [birthTs, setBirthTs] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [timerCat, setTimerCat] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  useEffect(() => {
+    const savedStart = localStorage.getItem('timerStart');
+    const savedCat = localStorage.getItem('timerCat');
+    if (savedStart && savedCat) {
+      const start = parseInt(savedStart);
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      setTimerStart(start);
+      setTimerElapsed(elapsed);
+      setTimerRunning(true);
+      setTimerCat(savedCat);
+      const unit = unitMap[savedCat] || 'n/a';
+      setForm({ what: savedCat, time: nowStockholm(), amount: '', unit });
+      setPage('add');
+      const interval = setInterval(() => {
+        setTimerElapsed(Math.floor((Date.now() - start) / 1000));
+      }, 1000);
+      setTimerInterval(interval);
+    }
+  }, []);
 
 
 
@@ -293,6 +314,9 @@ export default function App() {
     const start = Date.now() - timerElapsed * 1000;
     setTimerStart(start);
     setTimerRunning(true);
+    setTimerCat(form.what);
+    localStorage.setItem('timerStart', String(start));
+    localStorage.setItem('timerCat', form.what);
     const interval = setInterval(() => {
       setTimerElapsed(Math.floor((Date.now() - start) / 1000));
     }, 1000);
@@ -311,6 +335,9 @@ export default function App() {
     setForm(f => ({ ...f, amount: mins > 0 ? String(mins) : '1', time: nowStockholm() }));
     setTimerElapsed(0);
     setTimerStart(null);
+    setTimerCat('');
+    localStorage.removeItem('timerStart');
+    localStorage.removeItem('timerCat');
   };
   
   const resetTimer = () => {
@@ -318,6 +345,9 @@ export default function App() {
     setTimerRunning(false);
     setTimerElapsed(0);
     setTimerStart(null);
+    setTimerCat('');
+    localStorage.removeItem('timerStart');
+    localStorage.removeItem('timerCat');
   };
   
   function formatTimer(secs) {
@@ -358,8 +388,8 @@ export default function App() {
 
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchBirth(); } }, [session, fetchEntries, fetchCategories, fetchBirth]);
   useEffect(() => { 
-    if (page === 'add' && !form.what) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
-    if (page !== 'add') resetTimer();
+    if (page === 'add' && !form.what && !timerRunning) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
+    if (page !== 'add' && !timerRunning) resetTimer();
   }, [page]);
 
   if (status === 'loading') return <Loading />;
@@ -413,7 +443,7 @@ export default function App() {
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} timerElapsed={timerElapsed} timerRunning={timerRunning} onStartTimer={startTimer} onPauseTimer={pauseTimer} onStopTimer={stopTimer} onResetTimer={resetTimer} formatTimer={formatTimer} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} timerElapsed={timerElapsed} timerRunning={timerRunning} onStartTimer={startTimer} onPauseTimer={pauseTimer} onStopTimer={stopTimer} onResetTimer={resetTimer} formatTimer={formatTimer} timerCat={timerCat} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
@@ -426,8 +456,17 @@ export default function App() {
           { id: 'settings', icon: <SettingsIcon />, label: 'Inställningar' },
         ].map(({ id, icon, label }) => id === 'add' ? (
           <button key="add" style={S.navAdd} onClick={() => setPage('add')}>
-            <div style={{ ...S.addCircle, background: page === 'add' ? THEME.accentDark : THEME.accent }}>
-              <PlusIcon />
+            <div style={{ position: 'relative' }}>
+              <div style={{ ...S.addCircle, background: page === 'add' ? THEME.accentDark : THEME.accent }}>
+                <PlusIcon />
+              </div>
+              {timerRunning && (
+                <div style={{
+                  position: 'absolute', top: 0, right: 0,
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: THEME.timer, border: '2px solid ' + THEME.bg2,
+                }} />
+              )}
             </div>
           </button>
         ) : (
@@ -470,7 +509,27 @@ export default function App() {
           </div>
         </div>
       )}
-
+      {timerRunning && timerCat && page !== 'add' && (
+        <div className="pressable" onClick={() => setPage('add')} style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          width: 'calc(100% - 64px)', maxWidth: 432,
+          background: THEME.bg2, border: '1px solid ' + THEME.timer,
+          borderRadius: 14, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+        }}>
+          <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+            <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
+            <div style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: THEME.timer }} />
+          </div>
+          <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, color: THEME.textMuted }}>{timerCat} pågår</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timerElapsed)}</div>
+          </div>
+          <div style={{ fontSize: 12, color: THEME.textMuted }}>Tryck för att återgå →</div>
+        </div>
+      )}
       {toast && <div style={{ ...S.toast, background: THEME.text, color: THEME.bg2 }}>{toast}</div>}
     </div>
   );
@@ -507,7 +566,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
         <h1 style={{ ...S.h1, color: THEME.text }}>👶 Wilma Lund</h1>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
-      <button onClick={onDarkModeToggle} style={{ background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20, padding: '6px 10px', cursor: 'pointer', fontSize: 16, marginTop: 4 }}>
+      <button className="pressable" onClick={onDarkModeToggle} style={{ background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20, padding: '6px 10px', cursor: 'pointer', fontSize: 16, marginTop: 4, WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s, opacity 0.1s' }}>
         {darkMode ? '☀️' : '🌙'}
       </button>
     </div>
@@ -656,8 +715,10 @@ function Log({ entries, onEdit, emojiMap }) {
   );
 }
 
-function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer }) {
-  const showTimer = form.what === 'Amning' || form.what === 'Sömn';
+function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer, timerCat }) {
+  const isTimerCategory = form.what === 'Amning' || form.what === 'Sömn';
+  const showTimer = isTimerCategory && (!timerRunning || timerCat === form.what) && !(timerRunning && timerCat !== form.what);
+  const timerInBackground = timerRunning && timerCat && (form.what !== timerCat || !form.what);
   return (
     <div style={S.page}>
       <div style={S.header}>

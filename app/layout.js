@@ -50,6 +50,11 @@ export default function RootLayout({ children }) {
             opacity: 0.85;
             transition: transform 0.1s, opacity 0.1s;
           }
+          button.pressable:active {
+            transform: scale(0.97);
+            opacity: 0.85;
+            transition: transform 0.1s, opacity 0.1s;
+          }
           @keyframes fadeUp {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
