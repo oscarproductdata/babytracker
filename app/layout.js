@@ -21,6 +21,7 @@ export default function RootLayout({ children }) {
             --text: #1a1916;
             --text-muted: #717171;
             --text-faint: #9e9b95;
+            --press-bg: #efefec;
           }
           @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
@@ -31,6 +32,7 @@ export default function RootLayout({ children }) {
               --text: #f0ede8;
               --text-muted: #a09d96;
               --text-faint: #6b6860;
+              --press-bg: #2a2a26;
             }
           }
           [data-theme="dark"] {
@@ -41,14 +43,15 @@ export default function RootLayout({ children }) {
             --text: #f0ede8;
             --text-muted: #a09d96;
             --text-faint: #6b6860;
+            --press-bg: #2a2a26;
           }
           html, body {
             touch-action: pan-x pan-y;
           }
           .pressable:active {
             transform: scale(0.97);
-            opacity: 0.85;
-            transition: transform 0.1s, opacity 0.1s;
+            transition: transform 0.1s, background-color 0.1s;
+            background-color: var(--press-bg) !important;
           }
           .pressable-scale:active {
             transform: scale(0.97);
