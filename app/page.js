@@ -32,6 +32,16 @@ function displayCat(cat, emojiMap) {
   const emoji = emojiMap?.[cat];
   return emoji ? `${emoji} ${cat}` : cat;
 }
+function CatLabel({ cat, emojiMap, style }) {
+  const emoji = emojiMap?.[cat];
+  return (
+    <span style={style}>
+      {emoji && <span>{emoji}</span>}
+      {emoji && <span style={{ position: 'relative', top: 1 }}> {cat}</span>}
+      {!emoji && cat}
+    </span>
+  );
+}
 
 const CATEGORY_UNITS = {};
 
@@ -48,7 +58,9 @@ function timeSince(ts) {
   const mins = Math.floor((Date.now() - ts) / 60000);
   if (mins < 60) return mins + ' min';
   const h = Math.floor(mins / 60), m = mins % 60;
-  return h + 'h ' + (m > 0 ? m + 'min' : '');
+  if (h < 24) return h + 'h ' + (m > 0 ? m + 'min' : '');
+  const d = Math.floor(h / 24), rh = h % 24;
+  return d + 'd ' + rh + 'h ' + (m > 0 ? m + 'min' : '');
 }
 
 function formatTime(ts) {
@@ -179,6 +191,8 @@ export default function App() {
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [birthTs, setBirthTs] = useState(null);
+
 
   const emojiMap = Object.fromEntries(categories.map(c => [c.name, c.emoji]));
   const unitMap = Object.fromEntries(categories.map(c => [c.name, c.unit || 'n/a']));
@@ -215,7 +229,14 @@ export default function App() {
     setCategoriesLoaded(true);
   }, []);
 
-  useEffect(() => { if (session) { fetchEntries(); fetchCategories(); } }, [session, fetchEntries, fetchCategories]);
+  const fetchBirth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/birth');
+      if (res.ok) { const data = await res.json(); setBirthTs(data.ts); }
+    } catch(e) { console.error(e); }
+  }, []);
+
+  useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchBirth(); } }, [session, fetchEntries, fetchCategories, fetchBirth]);
   useEffect(() => { 
     if (page === 'add' && !form.what) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); 
   }, [page]);
@@ -265,7 +286,7 @@ export default function App() {
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} onCategoryClick={(cat) => {
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} onCategoryClick={(cat) => {
         const unit = unitMap[cat] || 'n/a';
         setForm({ what: cat, time: nowStockholm(), amount: '', unit });
         setPage('add');
@@ -334,26 +355,86 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick }) {
+function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
-  const trackCats = categories.filter(c => c.name !== 'Vikt');
-  const viktCat = getCat('Vikt');
+  const lengthEntries = entries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
+  const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd');
+
+  function ageString(birthTs) {
+    if (!birthTs) return null;
+    const diffMs = Date.now() - birthTs;
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor((diffMs % 86400000) / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    if (days > 0) return `${days}d ${hours}h ${mins}min`;
+    if (hours > 0) return `${hours}h ${mins}min`;
+    return `${mins}min`;
+  }
+
+  function formatBirthDate(ts) {
+    return new Date(ts).toLocaleString('sv-SE', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE
+    });
+  }
 
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={{ ...S.h1, color: THEME.text }}>Översikt</h1>
+        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Ellie Lund</h1>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
 
-      {weightEntries.length > 0 && (
-        <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 16px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
-          <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayCat('Vikt', emojiMap)}</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 2 }}>{weightEntries[0].amount} gram</div>
-          <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Uppmätt {timeSince(weightEntries[0].time)} sedan</div>
+      {/* Age card */}
+      {birthTs && (
+        <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 10px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
+          <style>{`
+            @keyframes breathe {
+              0%, 100% { transform: scale(1); opacity: 0.4; }
+              50% { transform: scale(1.35); opacity: 0.15; }
+            }
+            .breathe-ring {
+              animation: breathe 4s ease-in-out infinite;
+            }
+          `}</style>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 2 }}>
+            <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
+              <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: getCat('Amning').base, opacity: 0.4 }} />
+              <div style={{ position: 'absolute', inset: 6, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, paddingTop: 2 }}>❤️</div>
+            </div>
+            <div>
+            <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold' }}>
+              <span>🗓️</span>
+              <span style={{ position: 'relative', top: 1 }}> Ålder</span>
+            </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 2 }}>{ageString(birthTs)}</div>
+              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Föddes {formatBirthDate(birthTs)}</div>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Vikt + Längd featured cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 10px' }}>
+        {[{ name: 'Vikt', entries: weightEntries }, { name: 'Längd', entries: lengthEntries }].map(({ name, entries: catEntries }) => {
+          const c = getCat(name);
+          const last = catEntries[0];
+          return (
+            <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
+              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', marginBottom: 6 }}>
+                <CatLabel cat={name} emojiMap={emojiMap} />
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
+                {last ? `${last.amount} ${last.unit}` : '—'}
+              </div>
+              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
+                {last ? timeSince(last.time) : 'Ingen data'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {loading ? <div style={{ ...S.empty, color: THEME.textFaint }}>Laddar...</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
@@ -365,16 +446,14 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
               <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
-                <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                  {displayCat(name, emojiMap)}
+                <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', marginBottom: 6 }}>
+                  <CatLabel cat={name} emojiMap={emojiMap} />
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
-                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border }}>
-                  {name === 'Bajs' || name === 'Kiss'
-                    ? (last24.length > 0 ? `24h: ${last24.length} st` : 'Inget senaste 24h')
-                    : (total24 > 0 ? `24h: ${total24} ${last?.unit}` : 'Inget senaste 24h')
-                  }
+                <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{last24.length > 0 ? `24h: ${last24.length} st` : 'Inget 24h'}</span>
+                  {total24 > 0 && <span>{total24} {last?.unit}</span>}
                 </div>
               </div>
             );
@@ -489,7 +568,7 @@ function Stats({ entries, categories, emojiMap }) {
               <div style={{ ...S.formRow, borderBottom: '1px solid ' + THEME.border }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: THEME.text }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.base }} />
-                  {displayCat(name, emojiMap)}
+                  <CatLabel cat={name} emojiMap={emojiMap} />
                 </span>
                 <span style={{ fontSize: 14, color: THEME.textMuted }}>{last24.length} st</span>
               </div>
