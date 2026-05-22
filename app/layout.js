@@ -6,12 +6,42 @@ export default function RootLayout({ children }) {
     <html lang="sv">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <meta name="theme-color" content="#f8f7f4" />
+        <meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Babytracker" />
         <title>Babytracker</title>
         <style>{`
+          :root {
+            --bg: #f8f7f4;
+            --bg2: #ffffff;
+            --border: rgba(0,0,0,0.08);
+            --border-hover: rgba(0,0,0,0.14);
+            --text: #1a1916;
+            --text-muted: #717171;
+            --text-faint: #9e9b95;
+          }
+          @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+              --bg: #141412;
+              --bg2: #1e1e1b;
+              --border: rgba(255,255,255,0.08);
+              --border-hover: rgba(255,255,255,0.14);
+              --text: #f0ede8;
+              --text-muted: #a09d96;
+              --text-faint: #6b6860;
+            }
+          }
+          [data-theme="dark"] {
+            --bg: #141412;
+            --bg2: #1e1e1b;
+            --border: rgba(255,255,255,0.08);
+            --border-hover: rgba(255,255,255,0.14);
+            --text: #f0ede8;
+            --text-muted: #a09d96;
+            --text-faint: #6b6860;
+          }
           html, body {
             touch-action: pan-x pan-y;
           }

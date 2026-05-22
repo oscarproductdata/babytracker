@@ -5,20 +5,20 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const TIMEZONE = "Europe/Stockholm";
 
 const THEME = {
-  bg:          '#f8f7f4',
-  bg2:         '#ffffff',
-  border:      'rgba(0,0,0,0.08)',
-  borderHover: 'rgba(0,0,0,0.14)',
-  text:        '#1a1916',
-  textMuted:   '#717171',
-  textFaint:   '#9e9b95',
+  bg:          'var(--bg)',
+  bg2:         'var(--bg2)',
+  border:      'var(--border)',
+  borderHover: 'var(--border-hover)',
+  text:        'var(--text)',
+  textMuted:   'var(--text-muted)',
+  textFaint:   'var(--text-faint)',
   accent:      '#121212',
   accentDark:  '#121212',
   danger:      '#c0392b',
   timer:       '#16AF5D',
   timerStop:   '#1a1916',
-  chartGrid:   'rgba(0,0,0,0.05)',
-  chartTick:   '#9e9b95',
+  chartGrid:   'var(--border)',
+  chartTick:   'var(--text-faint)',
   categories: {
     'Ersättning': { base: '#009855', chart: 'rgba(0,152,85,0.25)',   card: '#e8f4ee', text: '#1b4332' },
     'Amning':     { base: '#E7005D', chart: 'rgba(231,0,93,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
@@ -47,7 +47,7 @@ function CatLabel({ cat, emojiMap, style }) {
 function CountUp({ value, from, delay = 0 }) {
   const [display, setDisplay] = useState(from);
   useEffect(() => {
-    const duration = 400;
+    const duration = 1000;
     const start = performance.now() + delay;
     function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
     let raf;
@@ -104,7 +104,7 @@ function toDatetimeLocal(ts) {
 
 function nowStockholm() { return toDatetimeLocal(Date.now()); }
 
-function TrendChart({ entries, categories, emojiMap }) {
+function TrendChart({ entries, categories, emojiMap, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const chartCats = categories.filter(c => c.name !== 'Vikt');
@@ -113,33 +113,38 @@ function TrendChart({ entries, categories, emojiMap }) {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
-    const days = 7;
-    const labels = [];
-    const data = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: TIMEZONE }));
-      const start = new Date(d.toLocaleDateString('sv-SE', { timeZone: TIMEZONE })).getTime();
-      const end = start + 86400000;
-      const dayEntries = entries.filter(e => e.what === activeCat && e.time >= start && e.time < end);
-      const total = dayEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-      data.push(total || dayEntries.length);
-    }
-    const cat = getCat(activeCat);
-    chartRef.current = new window.Chart(canvasRef.current, {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: cat.chart, borderColor: cat.base, borderWidth: 1.5, borderRadius: 6 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid } },
-          y: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid }, beginAtZero: true }
-        }
+    const timeout = setTimeout(() => {
+      const resolvedTick = getComputedStyle(document.documentElement).getPropertyValue('--text-faint').trim();
+      const resolvedGrid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+      const days = 7;
+      const labels = [];
+      const data = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: TIMEZONE }));
+        const start = new Date(d.toLocaleDateString('sv-SE', { timeZone: TIMEZONE })).getTime();
+        const end = start + 86400000;
+        const dayEntries = entries.filter(e => e.what === activeCat && e.time >= start && e.time < end);
+        const total = dayEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+        data.push(total || dayEntries.length);
       }
-    });
-  }, [activeCat, entries]);
+      const cat = getCat(activeCat);
+      chartRef.current = new window.Chart(canvasRef.current, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: cat.chart, borderColor: cat.base, borderWidth: 1.5, borderRadius: 6 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid } },
+            y: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid }, beginAtZero: true }
+          }
+        }
+      });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [activeCat, entries, darkMode]);
 
   return (
     <div style={S.chartCard}>
@@ -165,7 +170,7 @@ function TrendChart({ entries, categories, emojiMap }) {
   );
 }
 
-function WeightChart({ entries }) {
+function WeightChart({ entries, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const cat = getCat('Vikt');
@@ -173,28 +178,73 @@ function WeightChart({ entries }) {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
-    const weightData = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a, b) => a.time - b.time);
-    if (!weightData.length) return;
-    const labels = weightData.map(e => new Date(e.time).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', timeZone: TIMEZONE }));
-    const data = weightData.map(e => parseFloat(e.amount));
-    chartRef.current = new window.Chart(canvasRef.current, {
-      type: 'line',
-      data: { labels, datasets: [{ data, borderColor: cat.base, backgroundColor: cat.chart, borderWidth: 2, pointRadius: 4, pointBackgroundColor: cat.base, tension: 0.3, fill: true }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: THEME.chartTick, font: { size: 11 }, maxRotation: 45 }, grid: { color: THEME.chartGrid } },
-          y: { ticks: { color: THEME.chartTick, font: { size: 11 } }, grid: { color: THEME.chartGrid } }
+    const timeout = setTimeout(() => {
+      const resolvedTick = getComputedStyle(document.documentElement).getPropertyValue('--text-faint').trim();
+      const resolvedGrid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+      const weightData = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a, b) => a.time - b.time);
+      if (!weightData.length) return;
+      const labels = weightData.map(e => new Date(e.time).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', timeZone: TIMEZONE }));
+      const data = weightData.map(e => parseFloat(e.amount));
+      chartRef.current = new window.Chart(canvasRef.current, {
+        type: 'line',
+        data: { labels, datasets: [{ data, borderColor: cat.base, backgroundColor: cat.chart, borderWidth: 2, pointRadius: 4, pointBackgroundColor: cat.base, tension: 0.3, fill: true }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: resolvedTick, font: { size: 11 }, maxRotation: 45 }, grid: { color: resolvedGrid } },
+            y: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid } }
+          }
         }
-      }
-    });
-  }, [entries]);
+      });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [entries, darkMode]);
 
   return (
     <div style={S.chartCard}>
       <div style={{ position: 'relative', height: 180 }}>
         <canvas ref={canvasRef} role="img" aria-label="Viktutveckling" />
+      </div>
+    </div>
+  );
+}
+
+function LengthChart({ entries, darkMode }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  const cat = getCat('Längd');
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.Chart || !canvasRef.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+    const timeout = setTimeout(() => {
+      const resolvedTick = getComputedStyle(document.documentElement).getPropertyValue('--text-faint').trim();
+      const resolvedGrid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+      const lengthData = entries.filter(e => e.what === 'Längd' && e.amount).sort((a, b) => a.time - b.time);
+      if (!lengthData.length) return;
+      const labels = lengthData.map(e => new Date(e.time).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', timeZone: TIMEZONE }));
+      const data = lengthData.map(e => parseFloat(e.amount));
+      chartRef.current = new window.Chart(canvasRef.current, {
+        type: 'line',
+        data: { labels, datasets: [{ data, borderColor: cat.base, backgroundColor: cat.chart, borderWidth: 2, pointRadius: 4, pointBackgroundColor: cat.base, tension: 0.3, fill: true }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: resolvedTick, font: { size: 11 }, maxRotation: 45 }, grid: { color: resolvedGrid } },
+            y: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid } }
+          }
+        }
+      });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [entries, darkMode]);
+
+  return (
+    <div style={S.chartCard}>
+      <div style={{ position: 'relative', height: 180 }}>
+        <canvas ref={canvasRef} role="img" aria-label="Längdutveckling" />
       </div>
     </div>
   );
@@ -217,6 +267,12 @@ export default function App() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerInterval, setTimerInterval] = useState(null);
   const [birthTs, setBirthTs] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
 
 
   const emojiMap = Object.fromEntries(categories.map(c => [c.name, c.emoji]));
@@ -351,7 +407,7 @@ export default function App() {
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} onCategoryClick={(cat) => {
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
         const unit = unitMap[cat] || 'n/a';
         setForm({ what: cat, time: nowStockholm(), amount: '', unit });
         setPage('add');
@@ -420,7 +476,7 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs }) {
+function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs, darkMode, onDarkModeToggle }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const lengthEntries = entries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
@@ -446,10 +502,15 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
 
   return (
     <div style={S.page}>
-      <div style={S.header}>
+      <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div>
         <h1 style={{ ...S.h1, color: THEME.text }}>👶 Wilma Lund</h1>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
+      <button onClick={onDarkModeToggle} style={{ background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20, padding: '6px 10px', cursor: 'pointer', fontSize: 16, marginTop: 4 }}>
+        {darkMode ? '☀️' : '🌙'}
+      </button>
+    </div>
 
       {/* Age card */}
       {birthTs && (
@@ -464,10 +525,10 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             }
           `}</style>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 8, borderBottom: '1px solid #ebebeb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 8, borderBottom: '1px solid var(--border)' }}>
               <div style={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
                 <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: getCat('Amning').base, opacity: 0.4 }} />
-                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#FFF4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, paddingTop: 1 }}>❤️</div>
+                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, paddingTop: 1 }}>❤️</div>
               </div>
               <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold' }}>
                 <span style={{ position: 'relative', top: 1 }}> Ålder</span>
@@ -479,7 +540,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 const days = Math.floor(diffMs / 86400000);
                 const hours = Math.floor((diffMs % 86400000) / 3600000);
                 const mins = Math.floor((diffMs % 3600000) / 60000);
-                return <>{days}d {hours}h <CountUp value={mins} from={Math.max(0, mins - 5)} delay={200} />min</>;
+                return <>{days}d {hours}h <CountUp value={mins} from={Math.max(0, mins - 10)} delay={200} />min</>;
               })()}
             </div>
             <div style={{ fontSize: 12, fontWeight: 400, color: THEME.textMuted, padding: '2px 0' }}>Föddes {formatBirthDate(birthTs)}</div>
@@ -488,17 +549,17 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       )}
 
       {/* Vikt + Längd featured cards */}
-      <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 24px', borderBottom: '1px solid #ebebeb', marginBottom: 24 }}>
+      <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 24px', borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {[{ name: 'Vikt', entries: weightEntries }, { name: 'Längd', entries: lengthEntries }].map(({ name, entries: catEntries }) => {
           const c = getCat(name);
           const last = catEntries[0];
           return (
             <div key={name} className="pressable" onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
-              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold',  borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
+              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold',  borderBottom: '1px solid var(--border)', marginBottom: 8, paddingBottom: 8 }}>
                 <CatLabel cat={name} emojiMap={emojiMap} />
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
-                {last ? <><CountUp value={parseFloat(last.amount)} from={parseFloat(last.amount) - (last.unit === 'gram' ? 30 : 3)} delay={300} /> {last.unit}</> : '—'}
+                {last ? <><CountUp value={parseFloat(last.amount)} from={parseFloat(last.amount) - (last.unit === 'gram' ? 50 : 5)} delay={300} /> {last.unit}</> : '—'}
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
                 {last ? timeSince(last.time) : 'Ingen data'}
@@ -518,17 +579,17 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
               <div key={name} className="pressable" onClick={() => { if (navigator.vibrate) navigator.vibrate(8); onCategoryClick(name); }} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer', WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s', activeTransform: 'scale(0.97)' }}>
-                <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
+                <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', borderBottom: '1px solid var(--border)', marginBottom: 8, paddingBottom: 8 }}>
                   <CatLabel cat={name} emojiMap={emojiMap} />
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
                   {last ? (() => {
                     const mins = Math.floor((Date.now() - last.time) / 60000);
-                    if (mins < 60) return <><CountUp value={mins} from={Math.max(0, mins - 5)} delay={400} /> min</>;
+                    if (mins < 60) return <><CountUp value={mins} from={Math.max(0, mins - 10)} delay={400} /> min</>;
                     const h = Math.floor(mins / 60), m = mins % 60;
-                    if (h < 24) return <>{h}h <CountUp value={m} from={Math.max(0, m - 5)} delay={400} />min</>;
+                    if (h < 24) return <>{h}h <CountUp value={m} from={Math.max(0, m - 10)} delay={400} />min</>;
                     const d = Math.floor(h / 24), rh = h % 24;
-                    return <>{d}d {rh}h <CountUp value={m} from={Math.max(0, m - 5)} delay={400} />min</>;
+                    return <>{d}d {rh}h <CountUp value={m} from={Math.max(0, m - 10)} delay={400} />min</>;
                   })() : '—'}
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
@@ -546,11 +607,13 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
         <>
           <div className="fade-up fade-up-4" style={{ padding: '0 16px 8px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
-            <TrendChart entries={entries} categories={categories} emojiMap={emojiMap} />
+            <TrendChart entries={entries} categories={categories} emojiMap={emojiMap} darkMode={darkMode} />
           </div>
           <div className="fade-up fade-up-5" style={{ padding: '0 16px 16px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>{displayCat('Vikt', emojiMap)}</div>
-            <WeightChart entries={entries} />
+            <WeightChart entries={entries} darkMode={darkMode} />
+            <div style={{ ...S.sectionTitle, color: THEME.textFaint, marginTop: 16 }}>{displayCat('Längd', emojiMap)}</div>
+            <LengthChart entries={entries} darkMode={darkMode} />
           </div>
         </>
       )}
@@ -644,7 +707,7 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
                   <button onClick={onStartTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     ▶ Fortsätt
                   </button>
-                  <button onClick={onStopTimer} style={{ flex: 1, padding: '12px', background: '#1a1916', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={onStopTimer} style={{ flex: 1, padding: '12px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     ⏹ Avsluta
                   </button>
                   <button onClick={onResetTimer} style={{ padding: '12px 14px', background: 'none', color: THEME.textMuted, border: '1px solid ' + THEME.border, borderRadius: 10, fontSize: 15, cursor: 'pointer' }}>
@@ -741,7 +804,7 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
                   {name}
                 </span>
                 <button 
-                  style={{ ...S.logBtn, color: DEFAULT_CATEGORIES.some(d => d.name === name) ? 'rgba(0,0,0,0.15)' : THEME.textFaint }}
+                  style={{ ...S.logBtn, color: DEFAULT_CATEGORIES.some(d => d.name === name) ? 'var(--border-hover)' : THEME.textFaint }}
                   disabled={DEFAULT_CATEGORIES.some(d => d.name === name)}
                   onClick={async () => {
                     if (DEFAULT_CATEGORIES.some(d => d.name === name)) return;
@@ -832,7 +895,7 @@ const S = {
   navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   summaryCard: { borderRadius: 14, padding: '14px 16px', WebkitTapHighlightColor: 'transparent' },
-  chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid rgba(0,0,0,0.08)' },
+  chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid var(--border)' },
   formCard: { borderRadius: 14, overflow: 'hidden' },
   formRow: { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   input: { flex: 1, background: 'none', border: 'none', fontSize: 16, textAlign: 'right', outline: 'none', fontFamily: 'inherit', appearance: 'none' },
@@ -843,7 +906,7 @@ const S = {
   modal: { borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, padding: '20px 16px 36px' },
   handle: { width: 36, height: 4, borderRadius: 2, margin: '0 auto 20px' },
   modalTitle: { fontSize: 17, fontWeight: 700, marginBottom: 16 },
-  modalBtn: { flex: 1, padding: 14, borderRadius: 8, border: '1px solid rgba(0,0,0,0.14)', background: 'none', fontSize: 15, fontWeight: 500, cursor: 'pointer' },
+  modalBtn: { flex: 1, padding: 14, borderRadius: 8, border: '1px solid ' + THEME.border, background: 'none', fontSize: 15, fontWeight: 500, cursor: 'pointer' },
   toast: { position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '10px 20px', borderRadius: 20, fontSize: 14, fontWeight: 500, zIndex: 300, whiteSpace: 'nowrap' },
   empty: { textAlign: 'center', padding: '48px 32px', fontSize: 14 },
 };
