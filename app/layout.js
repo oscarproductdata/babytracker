@@ -20,6 +20,18 @@ export default function RootLayout({ children }) {
             opacity: 0.85;
             transition: transform 0.1s, opacity 0.1s;
           }
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .fade-up {
+            animation: fadeUp 0.4s ease-out forwards;
+          }
+          .fade-up-1 { animation-delay: 0.05s; opacity: 0; }
+          .fade-up-2 { animation-delay: 0.1s; opacity: 0; }
+          .fade-up-3 { animation-delay: 0.15s; opacity: 0; }
+          .fade-up-4 { animation-delay: 0.2s; opacity: 0; }
+          .fade-up-5 { animation-delay: 0.25s; opacity: 0; }
         `}</style>
       </head>
       <body style={{ margin: 0, padding: 0 }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>

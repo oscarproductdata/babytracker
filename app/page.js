@@ -44,6 +44,25 @@ function CatLabel({ cat, emojiMap, style }) {
     </span>
   );
 }
+function CountUp({ value, from, delay = 0 }) {
+  const [display, setDisplay] = useState(from);
+  useEffect(() => {
+    const duration = 400;
+    const start = performance.now() + delay;
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+    let raf;
+    function step(now) {
+      if (now < start) { raf = requestAnimationFrame(step); return; }
+      const t = Math.min((now - start) / duration, 1);
+      setDisplay(Math.round(from + easeOut(t) * (value - from)));
+      if (t < 1) raf = requestAnimationFrame(step);
+      else setDisplay(value);
+    }
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <span>{display}</span>;
+}
 
 const CATEGORY_UNITS = {};
 
@@ -434,10 +453,10 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
 
       {/* Age card */}
       {birthTs && (
-        <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 10px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
+        <div className="fade-up fade-up-1" style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 10px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
           <style>{`
             @keyframes breathe {
-              0%, 100% { transform: scale(1); opacity: 0.25; }
+              0%, 100% { transform: scale(1); opacity: 0.65; }
               50% { transform: scale(1.35); opacity: 0.05; }
             }
             .breathe-ring {
@@ -454,14 +473,22 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 <span style={{ position: 'relative', top: 1 }}> Ålder</span>
               </div>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 0 }}>{ageString(birthTs)}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 0 }}>
+              {(() => {
+                const diffMs = Date.now() - birthTs;
+                const days = Math.floor(diffMs / 86400000);
+                const hours = Math.floor((diffMs % 86400000) / 3600000);
+                const mins = Math.floor((diffMs % 3600000) / 60000);
+                return <>{days}d {hours}h <CountUp value={mins} from={Math.max(0, mins - 5)} delay={200} />min</>;
+              })()}
+            </div>
             <div style={{ fontSize: 12, fontWeight: 400, color: THEME.textMuted, padding: '2px 0' }}>Föddes {formatBirthDate(birthTs)}</div>
           </div>
         </div>
       )}
 
       {/* Vikt + Längd featured cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 24px', borderBottom: '1px solid #ebebeb', marginBottom: 24 }}>
+      <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 24px', borderBottom: '1px solid #ebebeb', marginBottom: 24 }}>
         {[{ name: 'Vikt', entries: weightEntries }, { name: 'Längd', entries: lengthEntries }].map(({ name, entries: catEntries }) => {
           const c = getCat(name);
           const last = catEntries[0];
@@ -471,7 +498,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 <CatLabel cat={name} emojiMap={emojiMap} />
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
-                {last ? `${last.amount} ${last.unit}` : '—'}
+                {last ? <><CountUp value={parseFloat(last.amount)} from={parseFloat(last.amount) - (last.unit === 'gram' ? 30 : 3)} delay={300} /> {last.unit}</> : '—'}
               </div>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>
                 {last ? timeSince(last.time) : 'Ingen data'}
@@ -482,7 +509,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       </div>
 
       {loading ? <div style={{ ...S.empty, color: THEME.textFaint }}>Laddar...</div> : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
+        <div className="fade-up fade-up-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
           {trackCats.map(({ name }) => {
             const c = getCat(name);
             const catEntries = entries.filter(e => e.what === name).sort((a,b) => b.time - a.time);
@@ -494,7 +521,16 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
                   <CatLabel cat={name} emojiMap={emojiMap} />
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
+                  {last ? (() => {
+                    const mins = Math.floor((Date.now() - last.time) / 60000);
+                    if (mins < 60) return <><CountUp value={mins} from={Math.max(0, mins - 5)} delay={400} /> min</>;
+                    const h = Math.floor(mins / 60), m = mins % 60;
+                    if (h < 24) return <>{h}h <CountUp value={m} from={Math.max(0, m - 5)} delay={400} />min</>;
+                    const d = Math.floor(h / 24), rh = h % 24;
+                    return <>{d}d {rh}h <CountUp value={m} from={Math.max(0, m - 5)} delay={400} />min</>;
+                  })() : '—'}
+                </div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 3 }}>sedan senast</div>
                 <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 6, paddingTop: 6, borderTop: '1px solid ' + THEME.border, display: 'flex', justifyContent: 'space-between' }}>
                   <span>{last24.length > 0 ? `24h: ${last24.length} st` : 'Inget 24h'}</span>
@@ -508,11 +544,11 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
 
       {chartJsLoaded && entries.length > 0 && (
         <>
-          <div style={{ padding: '0 16px 8px' }}>
+          <div className="fade-up fade-up-4" style={{ padding: '0 16px 8px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
             <TrendChart entries={entries} categories={categories} emojiMap={emojiMap} />
           </div>
-          <div style={{ padding: '0 16px 16px' }}>
+          <div className="fade-up fade-up-5" style={{ padding: '0 16px 16px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>{displayCat('Vikt', emojiMap)}</div>
             <WeightChart entries={entries} />
           </div>
