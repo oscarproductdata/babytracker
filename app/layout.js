@@ -50,6 +50,10 @@ export default function RootLayout({ children }) {
             opacity: 0.85;
             transition: transform 0.1s, opacity 0.1s;
           }
+          .pressable-scale:active {
+            transform: scale(0.97);
+            transition: transform 0.1s;
+          }
           button.pressable:active {
             transform: scale(0.97);
             opacity: 0.85;

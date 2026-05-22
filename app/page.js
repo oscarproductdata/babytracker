@@ -14,7 +14,7 @@ const THEME = {
   textFaint:   'var(--text-faint)',
   accent:      '#121212',
   accentDark:  '#121212',
-  danger:      '#c0392b',
+  danger:      '#FF0004',
   timer:       '#16AF5D',
   timerStop:   '#1a1916',
   chartGrid:   'var(--border)',
@@ -262,42 +262,34 @@ export default function App() {
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [timerStart, setTimerStart] = useState(null);
-  const [timerElapsed, setTimerElapsed] = useState(0);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerInterval, setTimerInterval] = useState(null);
+  const [timers, setTimers] = useState({});
   const [birthTs, setBirthTs] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
-  const [timerCat, setTimerCat] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
   useEffect(() => {
-    const savedStart = localStorage.getItem('timerStart');
-    const savedCat = localStorage.getItem('timerCat');
-    if (savedStart && savedCat) {
-      const start = parseInt(savedStart);
+    const restored = {};
+    Object.keys(localStorage).filter(k => k.startsWith('timer_')).forEach(savedKey => {
+      const cat = savedKey.replace('timer_', '');
+      const start = parseInt(localStorage.getItem(savedKey));
       const elapsed = Math.floor((Date.now() - start) / 1000);
-      setTimerStart(start);
-      setTimerElapsed(elapsed);
-      setTimerRunning(true);
-      setTimerCat(savedCat);
-      const unit = unitMap[savedCat] || 'n/a';
-      setForm({ what: savedCat, time: nowStockholm(), amount: '', unit });
-      setPage('add');
       const interval = setInterval(() => {
-        setTimerElapsed(Math.floor((Date.now() - start) / 1000));
+        setTimers(t => ({ ...t, [cat]: { ...t[cat], elapsed: Math.floor((Date.now() - start) / 1000) } }));
       }, 1000);
-      setTimerInterval(interval);
-    }
+      restored[cat] = { start, elapsed, running: true, interval };
+    });
+    if (Object.keys(restored).length > 0) setTimers(restored);
   }, []);
 
 
 
   const emojiMap = Object.fromEntries(categories.map(c => [c.name, c.emoji]));
   const unitMap = Object.fromEntries(categories.map(c => [c.name, c.unit || 'n/a']));
+  const timerRunning = Object.values(timers).some(t => t.running);
+  const activeTimerCats = Object.keys(timers);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Chart) {
@@ -310,44 +302,41 @@ export default function App() {
     }
   }, []);
 
-  const startTimer = () => {
-    const start = Date.now() - timerElapsed * 1000;
-    setTimerStart(start);
-    setTimerRunning(true);
-    setTimerCat(form.what);
-    localStorage.setItem('timerStart', String(start));
-    localStorage.setItem('timerCat', form.what);
+  const startTimer = (cat) => {
+    if (timers[cat]?.running) return;
+    const start = Date.now() - (timers[cat]?.elapsed || 0) * 1000;
     const interval = setInterval(() => {
-      setTimerElapsed(Math.floor((Date.now() - start) / 1000));
+      setTimers(t => ({ ...t, [cat]: { ...t[cat], elapsed: Math.floor((Date.now() - start) / 1000), running: true } }));
     }, 1000);
-    setTimerInterval(interval);
+    setTimers(t => ({ ...t, [cat]: { start, elapsed: timers[cat]?.elapsed || 0, running: true, interval } }));
+    localStorage.setItem('timer_' + cat, String(start));
   };
   
-  const pauseTimer = () => {
-    clearInterval(timerInterval);
-    setTimerRunning(false);
+  const pauseTimer = (cat) => {
+    clearInterval(timers[cat]?.interval);
+    setTimers(t => ({ ...t, [cat]: { ...t[cat], running: false } }));
   };
   
-  const stopTimer = () => {
-    clearInterval(timerInterval);
-    setTimerRunning(false);
-    const mins = Math.ceil(timerElapsed / 60);
-    setForm(f => ({ ...f, amount: mins > 0 ? String(mins) : '1', time: nowStockholm() }));
-    setTimerElapsed(0);
-    setTimerStart(null);
-    setTimerCat('');
-    localStorage.removeItem('timerStart');
-    localStorage.removeItem('timerCat');
+  const stopTimer = (cat) => {
+    clearInterval(timers[cat]?.interval);
+    const elapsed = timers[cat]?.elapsed || 0;
+    const mins = Math.ceil(elapsed / 60);
+    setForm({ what: cat, time: nowStockholm(), amount: mins > 0 ? String(mins) : '1', unit: unitMap[cat] || 'n/a' });
+    setTimers(t => { const n = { ...t }; delete n[cat]; return n; });
+    localStorage.removeItem('timer_' + cat);
+    setPage('add');
   };
   
-  const resetTimer = () => {
-    clearInterval(timerInterval);
-    setTimerRunning(false);
-    setTimerElapsed(0);
-    setTimerStart(null);
-    setTimerCat('');
-    localStorage.removeItem('timerStart');
-    localStorage.removeItem('timerCat');
+  const resetTimer = (cat) => {
+    if (!cat) {
+      Object.values(timers).forEach(t => clearInterval(t.interval));
+      setTimers({});
+      Object.keys(localStorage).filter(k => k.startsWith('timer_')).forEach(k => localStorage.removeItem(k));
+      return;
+    }
+    clearInterval(timers[cat]?.interval);
+    setTimers(t => { const n = { ...t }; delete n[cat]; return n; });
+    localStorage.removeItem('timer_' + cat);
   };
   
   function formatTimer(secs) {
@@ -389,7 +378,6 @@ export default function App() {
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchBirth(); } }, [session, fetchEntries, fetchCategories, fetchBirth]);
   useEffect(() => { 
     if (page === 'add' && !form.what && !timerRunning) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
-    if (page !== 'add' && !timerRunning) resetTimer();
   }, [page]);
 
   if (status === 'loading') return <Loading />;
@@ -443,7 +431,7 @@ export default function App() {
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} timerElapsed={timerElapsed} timerRunning={timerRunning} onStartTimer={startTimer} onPauseTimer={pauseTimer} onStopTimer={stopTimer} onResetTimer={resetTimer} formatTimer={formatTimer} timerCat={timerCat} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={() => startTimer(form.what)} onPauseTimer={() => pauseTimer(form.what)} onStopTimer={() => stopTimer(form.what)} onResetTimer={() => resetTimer(form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
@@ -509,27 +497,35 @@ export default function App() {
           </div>
         </div>
       )}
-      {timerRunning && timerCat && page !== 'add' && (
-        <div className="pressable" onClick={() => setPage('add')} style={{
-          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
-          width: 'calc(100% - 64px)', maxWidth: 432,
-          background: THEME.bg2, border: '1px solid ' + THEME.timer,
+      {activeTimerCats.filter(cat => page !== 'add' || cat !== form.what).map((cat, i) => (
+        <div key={cat} className="pressable-scale" onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
+          position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 70px + ${i * 70}px)`, left: '50%', transform: 'translateX(-50%)',
+          width: 'calc(100% - 48px)', maxWidth: 432,
+          background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
           borderRadius: 14, padding: '12px 16px',
           display: 'flex', alignItems: 'center', gap: 10,
           zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-          cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+          cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
         }}>
           <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
             <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
             <div style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: THEME.timer }} />
           </div>
           <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: THEME.textMuted }}>{timerCat} pågår</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timerElapsed)}</div>
+            <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
           </div>
-          <div style={{ fontSize: 12, color: THEME.textMuted }}>Tryck för att återgå →</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '4px 10px' }}>Återgå →</div>
+          <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
+            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
+            padding: '4px 8px', cursor: 'pointer', fontSize: 14,
+            color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
+          }}>Avbryt</button>
         </div>
-      )}
+        </div>
+      ))}
       {toast && <div style={{ ...S.toast, background: THEME.text, color: THEME.bg2 }}>{toast}</div>}
     </div>
   );
@@ -717,13 +713,22 @@ function Log({ entries, onEdit, emojiMap }) {
 
 function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer, timerCat }) {
   const isTimerCategory = form.what === 'Amning' || form.what === 'Sömn';
-  const showTimer = isTimerCategory && (!timerRunning || timerCat === form.what) && !(timerRunning && timerCat !== form.what);
-  const timerInBackground = timerRunning && timerCat && (form.what !== timerCat || !form.what);
+  const showTimer = isTimerCategory && (!timerRunning || timerCat === form.what);
   return (
     <div style={S.page}>
-      <div style={S.header}>
-        <h1 style={{ ...S.h1, color: THEME.text }}>Lägg till</h1>
-        <p style={{ ...S.sub, color: THEME.textMuted }}>Ny post</p>
+      <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ ...S.h1, color: THEME.text }}>Lägg till</h1>
+          <p style={{ ...S.sub, color: THEME.textMuted }}>Ny post</p>
+        </div>
+        {(form.what || timerRunning) && (
+          <button className="pressable" onClick={() => { if (confirm('Vill du verkligen avbryta?')) { onResetTimer(); setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); } }}          style={{
+            background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20,
+            padding: '6px 12px', cursor: 'pointer', fontSize: 13,
+            color: THEME.danger, borderColor: THEME.danger, marginTop: 4, WebkitTapHighlightColor: 'transparent',
+            transition: 'transform 0.1s, opacity 0.1s'
+          }}>Avbryt</button>
+        )}
       </div>
       <div style={{ padding: '0 16px' }}>
         <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
