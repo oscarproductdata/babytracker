@@ -476,7 +476,7 @@ export default function App() {
             </div>
           </button>
         ) : (
-          <button key={id} style={{ ...S.navBtn, color: page === id ? THEME.accent : THEME.textFaint, paddingLeft: idx === 0 ? 20 : 4, paddingRight: idx === 4 ? 20 : 4 }} onClick={() => setPage(id)}>
+          <button key={id} style={{ ...S.navBtn, color: page === id ? THEME.accent : THEME.textFaint, paddingLeft: idx === 0 ? 16 : 4, paddingRight: idx === 4 ? 16 : 4 }} onClick={() => setPage(id)}>
             {icon}
             <span style={{ fontSize: 10 }}>{label}</span>
           </button>
