@@ -3,7 +3,7 @@ import { SessionProvider } from "next-auth/react";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="sv">
+    <html lang="sv" style={{ background: 'var(--bg)' }}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)" />
@@ -76,7 +76,7 @@ export default function RootLayout({ children }) {
           .fade-up-5 { animation-delay: 0.25s; opacity: 0; }
         `}</style>
       </head>
-      <body style={{ margin: 0, padding: 0 }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
+      <body style={{ margin: 0, padding: 0, background: 'var(--bg)' }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
