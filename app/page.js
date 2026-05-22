@@ -974,7 +974,7 @@ const S = {
   h1: { fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', margin: 0 },
   sub: { fontSize: 14, marginTop: 2 },
   sectionTitle: { fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
-  nav: { position: 'fixed', bottom: 16, borderRadius: '20px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: 460, display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
+  nav: { position: 'fixed', bottom: 20, borderRadius: '20px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: 460, display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' },
   navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em' },
   navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
