@@ -13,8 +13,10 @@ const THEME = {
   textMuted:   '#717171',
   textFaint:   '#9e9b95',
   accent:      '#121212',
-  accentDark:  '#1b4332',
+  accentDark:  '#121212',
   danger:      '#c0392b',
+  timer:       '#16AF5D',
+  timerStop:   '#1a1916',
   chartGrid:   'rgba(0,0,0,0.05)',
   chartTick:   '#9e9b95',
   categories: {
@@ -191,6 +193,10 @@ export default function App() {
   const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [timerStart, setTimerStart] = useState(null);
+  const [timerElapsed, setTimerElapsed] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerInterval, setTimerInterval] = useState(null);
   const [birthTs, setBirthTs] = useState(null);
 
 
@@ -207,6 +213,45 @@ export default function App() {
       setChartJsLoaded(true);
     }
   }, []);
+
+  const startTimer = () => {
+    const start = Date.now() - timerElapsed * 1000;
+    setTimerStart(start);
+    setTimerRunning(true);
+    const interval = setInterval(() => {
+      setTimerElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    setTimerInterval(interval);
+  };
+  
+  const pauseTimer = () => {
+    clearInterval(timerInterval);
+    setTimerRunning(false);
+  };
+  
+  const stopTimer = () => {
+    clearInterval(timerInterval);
+    setTimerRunning(false);
+    const mins = Math.ceil(timerElapsed / 60);
+    setForm(f => ({ ...f, amount: mins > 0 ? String(mins) : '1', time: nowStockholm() }));
+    setTimerElapsed(0);
+    setTimerStart(null);
+  };
+  
+  const resetTimer = () => {
+    clearInterval(timerInterval);
+    setTimerRunning(false);
+    setTimerElapsed(0);
+    setTimerStart(null);
+  };
+  
+  function formatTimer(secs) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -238,7 +283,8 @@ export default function App() {
 
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchBirth(); } }, [session, fetchEntries, fetchCategories, fetchBirth]);
   useEffect(() => { 
-    if (page === 'add' && !form.what) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' }); 
+    if (page === 'add' && !form.what) setForm({ what: '', time: nowStockholm(), amount: '', unit: 'n/a' });
+    if (page !== 'add') resetTimer();
   }, [page]);
 
   if (status === 'loading') return <Loading />;
@@ -292,7 +338,7 @@ export default function App() {
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} timerElapsed={timerElapsed} timerRunning={timerRunning} onStartTimer={startTimer} onPauseTimer={pauseTimer} onStopTimer={stopTimer} onResetTimer={resetTimer} formatTimer={formatTimer} />}
       {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
@@ -511,7 +557,8 @@ function Log({ entries, onEdit, emojiMap }) {
   );
 }
 
-function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving }) {
+function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer }) {
+  const showTimer = form.what === 'Amning' || form.what === 'Sömn';
   return (
     <div style={S.page}>
       <div style={S.header}>
@@ -540,6 +587,43 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
             </select>
           </FormRow>
         </div>
+        {showTimer && (
+          <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-2px', color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
+              {formatTimer(timerElapsed)}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              {!timerRunning && timerElapsed === 0 && (
+                <button onClick={onStartTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                  ▶ Starta
+                </button>
+              )}
+              {timerRunning && (
+                <button onClick={onPauseTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                  ⏸ Pausa
+                </button>
+              )}
+              {!timerRunning && timerElapsed > 0 && (
+                <>
+                  <button onClick={onStartTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    ▶ Fortsätt
+                  </button>
+                  <button onClick={onStopTimer} style={{ flex: 1, padding: '12px', background: '#1a1916', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    ⏹ Avsluta
+                  </button>
+                  <button onClick={onResetTimer} style={{ padding: '12px 14px', background: 'none', color: THEME.textMuted, border: '1px solid ' + THEME.border, borderRadius: 10, fontSize: 15, cursor: 'pointer' }}>
+                    ↺
+                  </button>
+                </>
+              )}
+            </div>
+            {timerElapsed > 0 && !timerRunning && (
+              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 10 }}>
+                {Math.ceil(timerElapsed / 60) || 1} min kommer att fyllas i som mängd
+              </div>
+            )}
+          </div>
+        )}
         <button style={{ ...S.submitBtn, background: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={onSubmit} disabled={saving}>
           {saving ? 'Sparar...' : 'Spara post'}
         </button>
