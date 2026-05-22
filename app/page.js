@@ -399,7 +399,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             }
           `}</style>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, marginBottom: 4, borderBottom: '1px solid #ebebeb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 8, borderBottom: '1px solid #ebebeb' }}>
               <div style={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
                 <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: getCat('Amning').base, opacity: 0.4 }} />
                 <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#FFF4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, paddingTop: 1 }}>❤️</div>
@@ -408,19 +408,19 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 <span style={{ position: 'relative', top: 1 }}> Ålder</span>
               </div>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 0 }}>{ageString(birthTs)}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 0 }}>{ageString(birthTs)}</div>
             <div style={{ fontSize: 12, fontWeight: 400, color: THEME.textMuted, padding: '2px 0' }}>Föddes {formatBirthDate(birthTs)}</div>
           </div>
         </div>
       )}
 
       {/* Vikt + Längd featured cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 24px', borderBottom: '1px solid #ebebeb', marginBottom: 24 }}>
         {[{ name: 'Vikt', entries: weightEntries }, { name: 'Längd', entries: lengthEntries }].map(({ name, entries: catEntries }) => {
           const c = getCat(name);
           const last = catEntries[0];
           return (
-            <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
+            <div key={name} className="pressable" onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
               <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold',  borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
                 <CatLabel cat={name} emojiMap={emojiMap} />
               </div>
@@ -444,7 +444,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             const last24 = catEntries.filter(e => Date.now() - e.time < 86400000);
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
-              <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
+              <div key={name} className="pressable" onClick={() => { if (navigator.vibrate) navigator.vibrate(8); onCategoryClick(name); }} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer', WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s', activeTransform: 'scale(0.97)' }}>
                 <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
                   <CatLabel cat={name} emojiMap={emojiMap} />
                 </div>
@@ -703,7 +703,7 @@ function FormRow({ label, children, last }) {
 const S = {
   app: { fontFamily: '-apple-system,"Helvetica Neue",sans-serif', minHeight: '100vh', maxWidth: 480, margin: '0 auto' },
   page: { paddingBottom: 90 },
-  header: { padding: '56px 20px 16px' },
+  header: { padding: '36px 20px 16px' },
   h1: { fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', margin: 0 },
   sub: { fontSize: 14, marginTop: 2 },
   sectionTitle: { fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
@@ -711,7 +711,7 @@ const S = {
   navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 4px 8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, letterSpacing: '0.02em' },
   navAdd: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: '8px 4px' },
   addCircle: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  summaryCard: { borderRadius: 14, padding: '14px 16px' },
+  summaryCard: { borderRadius: 14, padding: '14px 16px', WebkitTapHighlightColor: 'transparent' },
   chartCard: { borderRadius: 14, padding: 16, marginBottom: 16, background: THEME.bg2, border: '1px solid rgba(0,0,0,0.08)' },
   formCard: { borderRadius: 14, overflow: 'hidden' },
   formRow: { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },

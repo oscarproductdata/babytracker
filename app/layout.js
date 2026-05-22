@@ -15,6 +15,11 @@ export default function RootLayout({ children }) {
           html, body {
             touch-action: pan-x pan-y;
           }
+          .pressable:active {
+            transform: scale(0.97);
+            opacity: 0.85;
+            transition: transform 0.1s, opacity 0.1s;
+          }
         `}</style>
       </head>
       <body style={{ margin: 0, padding: 0 }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
