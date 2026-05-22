@@ -10,7 +10,7 @@ const THEME = {
   border:      'rgba(0,0,0,0.08)',
   borderHover: 'rgba(0,0,0,0.14)',
   text:        '#1a1916',
-  textMuted:   '#6b6860',
+  textMuted:   '#717171',
   textFaint:   '#9e9b95',
   accent:      '#121212',
   accentDark:  '#1b4332',
@@ -382,7 +382,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
   return (
     <div style={S.page}>
       <div style={S.header}>
-        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Ellie Lund</h1>
+        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Wilma Lund</h1>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
 
@@ -391,26 +391,25 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
         <div style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 10px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
           <style>{`
             @keyframes breathe {
-              0%, 100% { transform: scale(1); opacity: 0.4; }
-              50% { transform: scale(1.35); opacity: 0.15; }
+              0%, 100% { transform: scale(1); opacity: 0.25; }
+              50% { transform: scale(1.35); opacity: 0.05; }
             }
             .breathe-ring {
               animation: breathe 4s ease-in-out infinite;
             }
           `}</style>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 2 }}>
-            <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
-              <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: getCat('Amning').base, opacity: 0.4 }} />
-              <div style={{ position: 'absolute', inset: 6, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, paddingTop: 2 }}>❤️</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, marginBottom: 4, borderBottom: '1px solid #ebebeb' }}>
+              <div style={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
+                <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: getCat('Amning').base, opacity: 0.4 }} />
+                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#FFF4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, paddingTop: 1 }}>❤️</div>
+              </div>
+              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold' }}>
+                <span style={{ position: 'relative', top: 1 }}> Ålder</span>
+              </div>
             </div>
-            <div>
-            <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold' }}>
-              <span>🗓️</span>
-              <span style={{ position: 'relative', top: 1 }}> Ålder</span>
-            </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 2 }}>{ageString(birthTs)}</div>
-              <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>Föddes {formatBirthDate(birthTs)}</div>
-            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: THEME.text, letterSpacing: '-0.5px', marginTop: 0 }}>{ageString(birthTs)}</div>
+            <div style={{ fontSize: 12, fontWeight: 400, color: THEME.textMuted, padding: '2px 0' }}>Föddes {formatBirthDate(birthTs)}</div>
           </div>
         </div>
       )}
@@ -422,7 +421,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
           const last = catEntries[0];
           return (
             <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
-              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold',  borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
                 <CatLabel cat={name} emojiMap={emojiMap} />
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>
@@ -446,7 +445,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
             const total24 = last24.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
             return (
               <div key={name} onClick={() => onCategoryClick(name)} style={{ ...S.summaryCard, background: THEME.bg2, border: '1px solid ' + THEME.border, cursor: 'pointer' }}>
-                <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: THEME.text, fontWeight: 'bold', borderBottom: '1px solid #EBEBEB', marginBottom: 8, paddingBottom: 8 }}>
                   <CatLabel cat={name} emojiMap={emojiMap} />
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, color: THEME.text }}>{last ? timeSince(last.time) : '—'}</div>
