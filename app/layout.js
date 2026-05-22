@@ -69,6 +69,13 @@ export default function RootLayout({ children }) {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
           }
+          @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.65; }
+            50% { transform: scale(1.35); opacity: 0.05; }
+          }
+          .breathe-ring {
+            animation: breathe 4s ease-in-out infinite;
+          }
           .fade-up {
             animation: fadeUp 0.4s ease-out forwards;
           }

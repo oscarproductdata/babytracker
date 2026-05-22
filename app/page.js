@@ -517,16 +517,16 @@ export default function App() {
       )}
       {activeTimerCats.filter(cat => page !== 'add' || cat !== form.what).map((cat, i) => (
         <div key={cat} className="pressable-scale" onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
-          position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 70px + ${i * 70}px)`, left: '50%', transform: 'translateX(-50%)',
-          width: 'calc(100% - 48px)', maxWidth: 432,
+          position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 70}px)`, left: '50%', transform: 'translateX(-50%)',
+          width: 'calc(100% - 96px)', maxWidth: 432,
           background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
-          borderRadius: 14, padding: '12px 16px',
+          borderRadius: 40, padding: '14px 16px',
           display: 'flex', alignItems: 'center', gap: 10,
           zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
           cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
           backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
         }}>
-          <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+          <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
             <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
             <div style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: THEME.timer }} />
           </div>
@@ -535,10 +535,10 @@ export default function App() {
             <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '4px 10px' }}>Återgå →</div>
+          <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
           <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
             background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
-            padding: '4px 8px', cursor: 'pointer', fontSize: 14,
+            padding: '8px 12px', cursor: 'pointer', fontSize: 14,
             color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
           }}>Avbryt</button>
         </div>
@@ -588,15 +588,6 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       {/* Age card */}
       {birthTs && (
         <div className="fade-up fade-up-1" style={{ background: THEME.bg2, borderRadius: 14, margin: '0 16px 10px', padding: '14px 16px', border: '1px solid ' + THEME.border }}>
-          <style>{`
-            @keyframes breathe {
-              0%, 100% { transform: scale(1); opacity: 0.65; }
-              50% { transform: scale(1.35); opacity: 0.05; }
-            }
-            .breathe-ring {
-              animation: breathe 4s ease-in-out infinite;
-            }
-          `}</style>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 8, borderBottom: '1px solid var(--border)' }}>
               <div style={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
