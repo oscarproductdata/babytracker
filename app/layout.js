@@ -35,7 +35,7 @@ export default function RootLayout({ children }) {
               --text-muted: #a09d96;
               --text-faint: #6b6860;
               --press-bg: #2a2a26;
-              --nav-bg: rgba(20, 20, 18, 0.1);
+              --nav-bg: rgba(20, 20, 18, 0.4);
             }
           }
           [data-theme="dark"] {
@@ -47,6 +47,7 @@ export default function RootLayout({ children }) {
             --text-muted: #a09d96;
             --text-faint: #6b6860;
             --press-bg: #2a2a26;
+            --nav-bg: rgba(20, 20, 18, 0.4);
           }
           html, body {
             touch-action: pan-x pan-y;
