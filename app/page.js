@@ -553,7 +553,11 @@ export default function App() {
         if ((cat === 'Amning_L' || cat === 'Amning_R') && form.what === 'Amning') return false;
         return true;
       }).map((cat, i) => (
-        <div key={cat} className="pressable-scale" onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
+        <div key={cat} className="pressable-scale" onClick={() => { 
+          const baseCat = cat === 'Amning_L' || cat === 'Amning_R' ? 'Amning' : cat;
+          handleCategoryChange(baseCat); 
+          setPage('add'); 
+        }} style={{
           position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 70}px)`, left: '50%', transform: 'translateX(-50%)',
           width: 'calc(100% - 96px)', maxWidth: 432,
           background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
