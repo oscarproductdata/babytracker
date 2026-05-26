@@ -527,8 +527,8 @@ export default function App() {
           backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
         }}>
           <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
-            <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
-            <div style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: THEME.timer }} />
+            <div className="breathe-ring" style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
+            <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer }} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
@@ -577,7 +577,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
     <div style={S.page}>
       <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div>
-        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Wilma Lund</h1>
+        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Ellie Lund</h1>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
       <button className="pressable" onClick={onDarkModeToggle} style={{ background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20, padding: '6px 10px', cursor: 'pointer', fontSize: 16, marginTop: 4, WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s, opacity 0.1s' }}>
@@ -763,7 +763,7 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
         </div>
         {showTimer && (
           <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
-            <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-2px', color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
+            <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
               {formatTimer(timerElapsed)}
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
