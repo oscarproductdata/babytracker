@@ -649,8 +649,8 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
                 const mins = Math.floor((diffMs % 3600000) / 60000);
                 const weeks = Math.floor(days / 7);
                 const remDays = days % 7;
-                if (weeks > 0) return <>{weeks} week &nbsp; {remDays} days &nbsp; {hours} hours</>;
-                return <>{days}d {hours}h</>;
+                if (weeks > 0) return <>{weeks} {weeks === 1 ? 'vecka' : 'veckor'} &nbsp; {remDays} {remDays === 1 ? 'dag' : 'dagar'} &nbsp; {hours} {hours === 1 ? 'timme' : 'timmar'}</>;
+                return <>{days} {days === 1 ? 'dag' : 'dagar'} &nbsp; {hours} {hours === 1 ? 'timme' : 'timmar'}</>;
               })()}
             </div>
             <div style={{ fontSize: 12, fontWeight: 400, color: THEME.textMuted, padding: '2px 0' }}>Föddes {formatBirthDate(birthTs)}</div>
