@@ -52,6 +52,9 @@ export default function RootLayout({ children }) {
           html, body {
             touch-action: pan-x pan-y;
           }
+          .nav-btn {
+            transition: color 0.2s ease;
+          }
           .pressable:active {
             transform: scale(0.97);
             transition: transform 0.1s, background-color 0.1s;
@@ -60,6 +63,11 @@ export default function RootLayout({ children }) {
           .pressable-scale:active {
             transform: scale(0.97);
             transition: transform 0.1s;
+          }
+          .nav-btn:active {
+            transform: scale(0.85);
+            opacity: 0.6;
+            transition: transform 0.12s ease, opacity 0.12s ease;
           }
           button.pressable:active {
             transform: scale(0.97);
@@ -85,6 +93,8 @@ export default function RootLayout({ children }) {
           .fade-up-3 { animation-delay: 0.15s; opacity: 0; }
           .fade-up-4 { animation-delay: 0.2s; opacity: 0; }
           .fade-up-5 { animation-delay: 0.25s; opacity: 0; }
+
+          .cat-tabs::-webkit-scrollbar { display: none; }
         `}</style>
       </head>
       <body style={{ margin: 0, padding: 0, background: 'var(--bg)' }} onTouchStart={e => { if (e.touches.length > 1) e.preventDefault(); }}>
