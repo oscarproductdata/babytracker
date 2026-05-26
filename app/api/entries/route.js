@@ -6,7 +6,6 @@ function parseSheetDate(val) {
   const num = parseFloat(val);
   if (!isNaN(num) && num > 40000) {
     const utcMs = (num - 25569) * 86400 * 1000;
-    // Round to nearest minute to avoid floating point issues
     const roundedMs = Math.round(utcMs / 60000) * 60000;
     const offsetHours = new Date(roundedMs).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', timeZoneName: 'short' }).match(/GMT([+-]\d+)/)?.[1];
     const offset = offsetHours ? parseInt(offsetHours) : 2;
@@ -30,7 +29,7 @@ export async function GET(request) {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A2:F1000`,
+      range: `${SHEET_NAME}!A2:H1000`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
 
@@ -43,6 +42,8 @@ export async function GET(request) {
         time: parseSheetDate(r[2]),
         amount: r[3] || null,
         unit: r[5] || "n/a",
+        amountL: r[6] || null,
+        amountR: r[7] || null,
       }))
       .filter(e => !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
@@ -58,46 +59,42 @@ export async function POST(request) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { what, time, amount, unit } = await request.json();
+    const { what, time, amount, unit, amountL, amountR } = await request.json();
     const sheets = await getSheet();
     const serial = toStockholmSerial(time);
 
-    const appendRes = await sheets.spreadsheets.values.append({
+    const readRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A:F`,
+      range: `${SHEET_NAME}!B:B`,
+      valueRenderOption: "UNFORMATTED_VALUE",
+    });
+    const nextRow = (readRes.data.values || []).length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_NAME}!B${nextRow}:H${nextRow}`,
       valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [["", what, serial, amount || "", "", unit || "n/a"]],
-      },
+      requestBody: { values: [[what, serial, amount || "", "", unit || "n/a", amountL || "", amountR || ""]] },
     });
 
-    const updatedRange = appendRes.data.updates.updatedRange;
-    const rowMatch = updatedRange.match(/(\d+)$/);
-    if (rowMatch) {
-      const rowIndex = parseInt(rowMatch[1]) - 1;
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SHEET_ID,
-        requestBody: {
-          requests: [{
-            repeatCell: {
-              range: {
-                sheetId: 0,
-                startRowIndex: rowIndex,
-                endRowIndex: rowIndex + 1,
-                startColumnIndex: 2,
-                endColumnIndex: 3,
-              },
-              cell: {
-                userEnteredFormat: {
-                  numberFormat: { type: "DATE_TIME", pattern: "yy-MM-dd HH.mm" }
-                }
-              },
-              fields: "userEnteredFormat.numberFormat",
-            }
-          }]
-        }
-      });
-    }
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        requests: [{
+          repeatCell: {
+            range: {
+              sheetId: 0,
+              startRowIndex: nextRow - 1,
+              endRowIndex: nextRow,
+              startColumnIndex: 2,
+              endColumnIndex: 3,
+            },
+            cell: { userEnteredFormat: { numberFormat: { type: "DATE_TIME", pattern: "yy-MM-dd HH.mm" } } },
+            fields: "userEnteredFormat.numberFormat",
+          }
+        }]
+      }
+    });
 
     return Response.json({ success: true });
   } catch (e) {
