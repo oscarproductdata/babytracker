@@ -470,7 +470,7 @@ export default function App() {
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
-      {page === 'stats' && <Stats entries={entries} categories={categories} emojiMap={emojiMap} />}
+      {page === 'utveckling' && <Utveckling birthTs={birthTs} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
 
       <nav style={{ ...S.nav, background: 'var(--nav-bg)', borderTop: '1px solid ' + THEME.border, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
@@ -486,7 +486,7 @@ export default function App() {
           { id: 'dashboard', icon: <GridIcon active={page === 'dashboard'} />, label: 'Översikt' },
           { id: 'log', icon: <LogIcon active={page === 'log'} />, label: 'History' },
           { id: 'add', icon: null, label: '' },
-          { id: 'stats', icon: <StatsIcon active={page === 'stats'} />, label: 'Statistik' },
+          { id: 'utveckling', icon: <BabyIcon active={page === 'utveckling'} />, label: 'Utveckling' },
           { id: 'settings', icon: <SettingsIcon active={page === 'settings'} />, label: 'Inställningar' },
         ].map(({ id, icon, label }, idx) => id === 'add' ? (
           <button key="add" className="nav-btn" style={S.navAdd} onClick={() => setPage('add')}>
@@ -878,6 +878,12 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
   const showTimer = isTimerCategory && (!timerRunning || timerCat === form.what);
   const timerL = timers['Amning_L'];
   const timerR = timers['Amning_R'];
+  const activeTabRef = useRef(null);
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [form.what]);
   return (
     <div style={S.page}>
       <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -905,7 +911,7 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
           const isActive = form.what === cat;
           const c = getCat(cat);
           return (
-            <button key={cat} onClick={() => onCategoryChange(cat)} style={{
+            <button key={cat} ref={isActive ? activeTabRef : null} onClick={() => onCategoryChange(cat)} style={{
               flexShrink: 0, padding: '8px 16px', borderRadius: 20,
               border: '1px solid ' + (isActive ? THEME.text : THEME.border),
               background: isActive ? THEME.text : THEME.bg2,
@@ -1052,6 +1058,216 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
       )}
     </div>
   );
+}
+
+function Utveckling({ birthTs }) {
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [usageStats, setUsageStats] = useState(() => 
+    JSON.parse(localStorage.getItem('utveckling_usage') || '{"totalCost":0,"totalCalls":0,"totalInput":0,"totalOutput":0}')
+  );
+
+  const currentWeek = birthTs ? Math.floor((Date.now() - birthTs) / (7 * 24 * 3600 * 1000)) : null;
+
+  useEffect(() => {
+    if (currentWeek !== null && selectedWeek === null) setSelectedWeek(currentWeek);
+  }, [currentWeek]);
+
+  useEffect(() => {
+    if (selectedWeek === null) return;
+    const cacheKey = `utveckling_v1_week_${selectedWeek}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) { setContent(JSON.parse(cached)); return; }
+    fetchContent(selectedWeek);
+  }, [selectedWeek]);
+
+  const fetchContent = async (week) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/development', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week })
+      });
+      const parsed = await res.json();
+      if (parsed.error) throw new Error(parsed.error);
+      // Track token usage
+      if (parsed._usage) {
+        const inputTokens = parsed._usage.input_tokens || 0;
+        const outputTokens = parsed._usage.output_tokens || 0;
+        const cost = (inputTokens / 1_000_000 * 3) + (outputTokens / 1_000_000 * 15);
+        const existing = JSON.parse(localStorage.getItem('utveckling_usage') || '{"totalCost":0,"totalCalls":0,"totalInput":0,"totalOutput":0}');
+        localStorage.setItem('utveckling_usage', JSON.stringify({
+          totalCost: existing.totalCost + cost,
+          totalCalls: existing.totalCalls + 1,
+          totalInput: existing.totalInput + inputTokens,
+          totalOutput: existing.totalOutput + outputTokens,
+        }));
+        delete parsed._usage;
+      }
+      localStorage.setItem(`utveckling_v1_week_${week}`, JSON.stringify(parsed));
+      setContent(parsed);
+    } catch (e) {
+      setError('Kunde inte hämta information. Försök igen.');
+    }
+    setUsageStats(JSON.parse(localStorage.getItem('utveckling_usage') || '{"totalCost":0,"totalCalls":0,"totalInput":0,"totalOutput":0}'));
+    setLoading(false);
+  };
+
+  const weeks = currentWeek !== null ? Array.from({ length: currentWeek + 2 }, (_, i) => currentWeek + 1 - i) : [];
+
+  return (
+    <div style={S.page}>
+      <div style={S.header}>
+        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Utveckling</h1>
+        <p style={{ ...S.sub, color: THEME.textMuted }}>
+          {currentWeek !== null ? `Vecka ${currentWeek} just nu` : 'Laddar...'}
+        </p>
+        {usageStats.totalCalls > 0 && (
+          <div style={{ fontSize: 11, color: THEME.textFaint, marginTop: 4 }}>
+            {usageStats.totalCalls} anrop · {usageStats.totalInput + usageStats.totalOutput} tokens · ${usageStats.totalCost.toFixed(4)}
+          </div>
+        )}
+      </div>
+
+      {/* Week selector */}
+      <div className="cat-tabs" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '0 16px 16px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {weeks.map(w => (
+          <button key={w} onClick={() => setSelectedWeek(w)} style={{
+            flexShrink: 0, padding: '8px 16px', borderRadius: 20,
+            border: '1px solid ' + (selectedWeek === w ? THEME.text : THEME.border),
+            background: selectedWeek === w ? THEME.text : THEME.bg2,
+            color: selectedWeek === w ? THEME.bg : THEME.text,
+            fontSize: 13, fontWeight: selectedWeek === w ? 600 : 400,
+            cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            transition: 'all 0.15s', whiteSpace: 'nowrap'
+          }}>
+            {w === currentWeek ? `Vecka ${w} (Nuvarande)` : w === currentWeek + 1 ? `Vecka ${w} (Kommande)` : `Vecka ${w}`}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: '0 16px' }}>
+      {loading && (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <div style={{
+              fontSize: 40, marginBottom: 12,
+              background: 'linear-gradient(135deg, #0ea5e9, #16AF5D)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              display: 'inline-block',
+              animation: 'breathe 2.5s ease-in-out infinite',
+            }}>✦</div>
+            <div style={{ fontSize: 14, color: THEME.textMuted }}>Hämtar information...</div>
+            <style>{`
+              @keyframes breathe {
+                0%, 100% { transform: scale(1); opacity: 0.5; }
+                50% { transform: scale(1.25); opacity: 1; }
+              }
+            `}</style>
+          </div>
+        )}
+        {error && (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: THEME.danger }}>
+            <div>{error}</div>
+            <button onClick={() => fetchContent(selectedWeek)} style={{ marginTop: 12, padding: '8px 16px', borderRadius: 20, border: '1px solid ' + THEME.border, background: 'none', color: THEME.text, cursor: 'pointer' }}>Försök igen</button>
+          </div>
+        )}
+        {content && !loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={async () => {
+                if (!confirm('Hämta ny information från AI för denna vecka?')) return;
+                localStorage.removeItem(`utveckling_v1_week_${selectedWeek}`);
+                await fetch('/api/development/clear', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ week: selectedWeek })
+                });
+                setContent(null);
+                fetchContent(selectedWeek);
+              }} style={{
+                background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20,
+                padding: '5px 12px', cursor: 'pointer', fontSize: 12,
+                color: THEME.textMuted, display: 'flex', alignItems: 'center', gap: 6
+              }}>↺ Uppdatera vecka {selectedWeek}</button>
+            </div>
+            {/* Summary */}
+            <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textFaint }}>Sammanfattning</div>
+                {content.summarySource && <a href={content.summarySource.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: THEME.textMuted, textDecoration: 'none', background: THEME.border, borderRadius: 20, padding: '3px 8px' }}>{content.summarySource.name} →</a>}
+              </div>
+              <div style={{ fontSize: 15, color: THEME.text, lineHeight: 1.5 }}>{content.summary}</div>
+            </div>
+
+            {/* Milestones */}
+            <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textFaint }}>🌟 Milstolpar</div>
+                {content.milestonesSource && <a href={content.milestonesSource.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: THEME.textMuted, textDecoration: 'none', background: THEME.border, borderRadius: 20, padding: '3px 8px' }}>{content.milestonesSource.name} →</a>}
+              </div>
+              {content.milestones?.map((m, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < content.milestones.length - 1 ? 10 : 0 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: getCat('Amning').base, flexShrink: 0, marginTop: 7 }} />
+                  <div style={{ fontSize: 14, color: THEME.text, lineHeight: 1.5 }}>{m}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tips */}
+            <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textFaint }}>💡 Tips för föräldrar</div>
+                {content.tipsSource && <a href={content.tipsSource.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: THEME.textMuted, textDecoration: 'none', background: THEME.border, borderRadius: 20, padding: '3px 8px' }}>{content.tipsSource.name} →</a>}
+              </div>
+              {content.tips?.map((t, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < content.tips.length - 1 ? 10 : 0 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: getCat('Vikt').base, flexShrink: 0, marginTop: 7 }} />
+                  <div style={{ fontSize: 14, color: THEME.text, lineHeight: 1.5 }}>{t}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Watch for */}
+            <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, padding: '16px', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textFaint }}>👁 Håll koll på</div>
+                {content.watchForSource && <a href={content.watchForSource.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: THEME.textMuted, textDecoration: 'none', background: THEME.border, borderRadius: 20, padding: '3px 8px' }}>{content.watchForSource.name} →</a>}
+              </div>
+              {content.watchFor?.map((w, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < content.watchFor.length - 1 ? 10 : 0 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: getCat('Kiss').base, flexShrink: 0, marginTop: 7 }} />
+                  <div style={{ fontSize: 14, color: THEME.text, lineHeight: 1.5 }}>{w}</div>
+                </div>
+              ))}
+            </div>
+
+{/* Sources */}
+{content.sources?.length > 0 && (
+  <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, padding: '16px', marginBottom: 24 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textFaint, marginBottom: 12 }}>📚 Källor</div>
+    {content.sources.map((s, i) => (
+      <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 0',
+        borderBottom: i < content.sources.length - 1 ? '1px solid ' + THEME.border : 'none',
+        textDecoration: 'none',
+        color: THEME.text,
+      }}>
+        <div style={{ fontSize: 14, flex: 1 }}>{s.name}</div>
+        <div style={{ fontSize: 12, color: THEME.textMuted }}>→</div>
+      </a>
+    ))}
+  </div>
+)}
+</div>
+)}
+</div>
+</div>
+);
 }
 
 function Stats({ entries, categories, emojiMap }) {
@@ -1236,7 +1452,7 @@ const S = {
 
 function GridIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'url(#navGrad)' : 'currentColor'} strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>; }
 function LogIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'url(#navGrad)' : 'currentColor'} strokeWidth="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>; }
-function StatsIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'url(#navGrad)' : 'currentColor'} strokeWidth="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>; }
 function SettingsIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'url(#navGrad)' : 'currentColor'} strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>; }
 function EditIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>; }
 function PlusIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bg)" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>; }
+function BabyIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'url(#navGrad)' : 'currentColor'} strokeWidth="1.8"><circle cx="12" cy="7" r="3"/><path d="M8 14c0-2.2 1.8-4 4-4s4 1.8 4 4"/><path d="M3 19c0-3.3 4-6 9-6s9 2.7 9 6"/></svg>; }
