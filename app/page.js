@@ -551,46 +551,105 @@ export default function App() {
         </div>
       </div>
       )}
-      {activeTimerCats.filter(cat => {
-        if (page !== 'add') return true;
-        if (cat === form.what) return false;
-        if ((cat === 'Amning_L' || cat === 'Amning_R') && form.what === 'Amning') return false;
-        return true;
-      }).map((cat, i) => (
-        <div key={cat} className="pressable-scale" onClick={() => { 
-          const baseCat = cat === 'Amning_L' || cat === 'Amning_R' ? 'Amning' : cat;
-          handleCategoryChange(baseCat); 
-          setPage('add'); 
-        }} style={{
-          position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 70}px)`, left: '50%', transform: 'translateX(-50%)',
-          width: 'calc(100% - 96px)', maxWidth: 432,
-          background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
-          borderRadius: 40, padding: '14px 16px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-          cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
-        }}>
-          <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
-            <div className="breathe-ring" style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
-            <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer }} />
-          </div>
-          <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: THEME.textMuted }}>
-            {cat === 'Amning_L' ? '⬅ Amning Vänster' : cat === 'Amning_R' ? 'Amning Höger ➡' : cat + ' pågår'}
-          </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
-          <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
-            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
-            padding: '8px 12px', cursor: 'pointer', fontSize: 14,
-            color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
-          }}>Avbryt</button>
-        </div>
-        </div>
-      ))}
+      {(() => {
+        const hasAmning = activeTimerCats.includes('Amning_L') || activeTimerCats.includes('Amning_R');
+        const showAmningBanner = hasAmning && !(page === 'add' && form.what === 'Amning');
+        const otherCats = activeTimerCats.filter(cat => cat !== 'Amning_L' && cat !== 'Amning_R');
+        const bannersToShow = [
+          ...(showAmningBanner ? ['__amning__'] : []),
+          ...otherCats.filter(cat => !(page === 'add' && cat === form.what)),
+        ];
+        return bannersToShow.map((cat, i) => {
+          if (cat === '__amning__') {
+            const tL = timers['Amning_L'];
+            const tR = timers['Amning_R'];
+            return (
+              <div key="amning-banner" onClick={() => { handleCategoryChange('Amning'); setPage('add'); }} style={{
+                position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
+                width: 'calc(100% - 48px)', maxWidth: 432,
+                background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
+                borderRadius: 20, padding: '12px 14px',
+                display: 'flex', flexDirection: 'column', gap: 10,
+                zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                WebkitTapHighlightColor: 'transparent', cursor: 'pointer',
+              }}>
+                {/* Header row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+                      <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
+                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer }} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: THEME.text }}>🤱 Amning</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Amning-timers?')) { resetTimer('Amning_L'); resetTimer('Amning_R'); } }} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: THEME.danger, fontWeight: 500 }}>Avbryt</button>
+                  </div>
+                </div>
+                {/* L/R timer row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[['L', tL], ['R', tR]].map(([side, t]) => {
+                    const running = t?.running || false;
+                    const elapsed = t?.elapsed || 0;
+                    const key = `Amning_${side}`;
+                    return (
+                      <div key={side} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 2 }}>{side === 'L' ? '⬅ Vänster' : 'Höger ➡'}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>{formatTimer(elapsed)}</div>
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); running ? pauseTimer(key) : startTimer(key); }} style={{
+                          width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                          background: running ? THEME.timer : 'rgba(255,255,255,0.25)',
+                          color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          {running ? '⏸' : '▶'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); submitEntry(); }} style={{
+                    width: '100%', padding: '10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'white',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>💾 Spara amning</button>
+                </div>
+              );
+            }
+            return (
+            <div key={cat} className="pressable-scale" onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
+              position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
+              width: 'calc(100% - 48px)', maxWidth: 432,
+              background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
+              borderRadius: 20, padding: '14px 16px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
+            }}>
+              <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
+                <div className="breathe-ring" style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
+                <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
+                <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
+                  background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
+                  padding: '8px 12px', cursor: 'pointer', fontSize: 14,
+                  color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
+                }}>Avbryt</button>
+              </div>
+            </div>
+          );
+        });
+      })()}
       {toast && <div style={{ ...S.toast, background: THEME.text, color: THEME.bg2 }}>{toast}</div>}
     </div>
   );
@@ -976,7 +1035,7 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     </div>
   </div>
 )}
-          <button style={{ ...S.submitBtn, background: THEME.bg2, color: THEME.text, border: '1px solid ' + THEME.border, opacity: saving ? 0.6 : 1 }} onClick={onSubmit} disabled={saving}>
+          <button data-submit style={{ ...S.submitBtn, background: THEME.bg2, color: THEME.text, border: '1px solid ' + THEME.border, opacity: saving ? 0.6 : 1 }} onClick={onSubmit} disabled={saving}>
             {saving ? 'Sparar...' : 'Spara post'}
           </button>
         </div>
