@@ -1179,7 +1179,7 @@ function Utveckling({ birthTs }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {content.title && (
               <div style={{ fontSize: 18, fontWeight: 700, color: THEME.text, letterSpacing: '-0.3px', lineHeight: 1.3, marginBottom: 4 }}>
-                {content.title}
+                {content.title.replace(/^Utveckling vecka \d+[:\s-]*/i, '').trim()}
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
