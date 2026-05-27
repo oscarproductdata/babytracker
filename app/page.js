@@ -1069,7 +1069,7 @@ function Utveckling({ birthTs }) {
     JSON.parse(localStorage.getItem('utveckling_usage') || '{"totalCost":0,"totalCalls":0,"totalInput":0,"totalOutput":0}')
   );
 
-  const currentWeek = birthTs ? Math.floor((Date.now() - birthTs) / (7 * 24 * 3600 * 1000)) : null;
+  const currentWeek = birthTs ? Math.floor((Date.now() - birthTs) / (7 * 24 * 3600 * 1000)) + 1 : null;
 
   useEffect(() => {
     if (currentWeek !== null && selectedWeek === null) setSelectedWeek(currentWeek);
@@ -1117,7 +1117,7 @@ function Utveckling({ birthTs }) {
     setLoading(false);
   };
 
-  const weeks = currentWeek !== null ? Array.from({ length: currentWeek + 2 }, (_, i) => currentWeek + 1 - i) : [];
+  const weeks = currentWeek !== null ? Array.from({ length: currentWeek + 1 }, (_, i) => currentWeek + 1 - i).filter(w => w >= 1) : [];
 
   return (
     <div style={S.page}>
