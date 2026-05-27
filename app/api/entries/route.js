@@ -11,6 +11,16 @@ function parseSheetDate(val) {
     const offset = offsetHours ? parseInt(offsetHours) : 2;
     return roundedMs - (offset * 3600 * 1000);
   }
+  // Handle text format like "26-05-19 00.30"
+  if (typeof val === 'string') {
+    const match = val.match(/^(\d{2})-(\d{2})-(\d{2})\s+(\d{2})\.(\d{2})$/);
+    if (match) {
+      const [_, yy, mm, dd, hh, min] = match;
+      const isoStr = `20${yy}-${mm}-${dd}T${hh}:${min}:00`;
+      const d = new Date(isoStr);
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+  }
   return NaN;
 }
 
@@ -34,8 +44,11 @@ export async function GET(request) {
     });
 
     const rows = res.data.values || [];
+    console.log('Total rows:', rows.length);
+    console.log('First row:', JSON.stringify(rows[0]));
+    
     const entries = rows
-      .filter(r => r[1] && r[2] && !isNaN(parseFloat(r[2])))
+      .filter(r => r[1] && r[2])
       .map((r, i) => ({
         id: i + 2,
         what: r[1] || "",
@@ -48,8 +61,10 @@ export async function GET(request) {
       .filter(e => !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
 
+    console.log('Parsed entries:', entries.length);
     return Response.json(entries);
   } catch (e) {
+    console.error('GET error:', e.message, e.stack);
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
