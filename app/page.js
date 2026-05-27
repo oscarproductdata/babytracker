@@ -370,9 +370,13 @@ export default function App() {
 
   const fetchEntries = useCallback(async () => {
     try {
-      const res = await fetch('/api/entries');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch('/api/entries', { signal: controller.signal });
+      clearTimeout(timeout);
       if (res.ok) { const data = await res.json(); setEntries(data); }
-    } catch(e) { console.error(e); }
+      else { const err = await res.json(); console.error('API error:', err); }
+    } catch(e) { console.error('Fetch error:', e.message); }
     setLoading(false);
   }, []);
 

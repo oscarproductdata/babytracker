@@ -39,7 +39,7 @@ export async function GET(request) {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A2:H1000`,
+      range: `${SHEET_NAME}!A2:G1000`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
 
@@ -48,15 +48,15 @@ export async function GET(request) {
     console.log('First row:', JSON.stringify(rows[0]));
     
     const entries = rows
-      .filter(r => r[1] && r[2])
+    .filter(r => r[1] && r[2])
       .map((r, i) => ({
         id: i + 2,
         what: r[1] || "",
         time: parseSheetDate(r[2]),
         amount: r[3] || null,
-        unit: r[5] || "n/a",
-        amountL: r[6] || null,
-        amountR: r[7] || null,
+        unit: r[4] || "n/a",
+        amountL: r[5] || null,
+        amountR: r[6] || null,
       }))
       .filter(e => !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
@@ -81,15 +81,17 @@ export async function POST(request) {
     const readRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_NAME}!B:B`,
-      valueRenderOption: "UNFORMATTED_VALUE",
+      valueRenderOption: "FORMATTED_VALUE",
     });
-    const nextRow = (readRes.data.values || []).length + 1;
+    const allRows = readRes.data.values || [];
+    const lastNonEmpty = allRows.reduce((last, row, i) => row[0] ? i : last, 0);
+    const nextRow = lastNonEmpty + 2;
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!B${nextRow}:H${nextRow}`,
+      range: `${SHEET_NAME}!B${nextRow}:G${nextRow}`,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [[what, serial, amount || "", "", unit || "n/a", amountL || "", amountR || ""]] },
+      requestBody: { values: [[what, serial, amount || "", unit || "n/a", amountL || "", amountR || ""]] },
     });
 
     await sheets.spreadsheets.batchUpdate({
