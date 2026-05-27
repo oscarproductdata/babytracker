@@ -35,7 +35,7 @@ export async function GET(request) {
 
     const rows = res.data.values || [];
     const entries = rows
-      .filter(r => r[1] && r[2])
+      .filter(r => r[1] && r[2] && !isNaN(parseFloat(r[2])))
       .map((r, i) => ({
         id: i + 2,
         what: r[1] || "",
