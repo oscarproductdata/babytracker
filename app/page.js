@@ -1003,6 +1003,16 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     </div>
   </div>
 )}
+{isAmning && !timers['Amning_L'] && !timers['Amning_R'] ? (
+  <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginTop: 8 }}>
+    <FormRow label="Mängd L">
+      <input type="number" style={{ ...S.input, color: THEME.text }} value={form.amountL || ''} onChange={e => setForm(f => ({ ...f, amountL: e.target.value }))} placeholder="min" inputMode="decimal" />
+    </FormRow>
+    <FormRow label="Mängd R" last>
+      <input type="number" style={{ ...S.input, color: THEME.text }} value={form.amountR || ''} onChange={e => setForm(f => ({ ...f, amountR: e.target.value }))} placeholder="min" inputMode="decimal" />
+    </FormRow>
+  </div>
+) : null}
 {form.what === 'Sömn' && showTimer && (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
     <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
