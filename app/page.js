@@ -1177,6 +1177,11 @@ function Utveckling({ birthTs }) {
         )}
         {content && !loading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {content.title && (
+              <div style={{ fontSize: 18, fontWeight: 700, color: THEME.text, letterSpacing: '-0.3px', lineHeight: 1.3, marginBottom: 4 }}>
+                {content.title}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={async () => {
                 if (!confirm('Hämta ny information från AI för denna vecka?')) return;
