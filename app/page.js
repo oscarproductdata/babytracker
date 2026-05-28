@@ -699,7 +699,7 @@ export default function App() {
     
     let submittedForm = { ...form, time: nowStockholm() };
   
-    if (form.what === 'Amning') {
+    if (form.what === 'Amning' || activeTimerCats.includes('Amning_L') || activeTimerCats.includes('Amning_R')) {
       const lElapsed = timers['Amning_L']?.elapsed || 0;
       const rElapsed = timers['Amning_R']?.elapsed || 0;
       if (lElapsed > 0) submittedForm.amountL = String(Math.ceil(lElapsed / 60));
