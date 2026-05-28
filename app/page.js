@@ -732,7 +732,7 @@ export default function App() {
     setSaving(true);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, child_id: entryChildId }),
+      body: (() => { const payload = { what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, lastSide: submittedForm.lastSide || null, child_id: entryChildId }; console.log('Submitting entry payload:', JSON.stringify(payload)); return JSON.stringify(payload); })(),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
     else showToast('Något gick fel');
