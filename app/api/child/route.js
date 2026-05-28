@@ -9,7 +9,7 @@ export async function GET(request) {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `children!A2:F100`,
+      range: `children!A2:G100`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
 
@@ -41,6 +41,7 @@ export async function GET(request) {
         birthTs: parseBirthTs(r[3]),
         dueDate: parseBirthTs(r[4]),
         parentEmails: (r[5] || '').split(',').map(e => e.trim()),
+        emoji: r[6] || '👶',
       }));
 
     return Response.json(children);

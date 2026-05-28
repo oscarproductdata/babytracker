@@ -473,7 +473,7 @@ function ChildSelector({ children, selectedChild, onSelect }) {
             fontSize: 13, fontWeight: isActive ? 600 : 400,
             cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
             transition: 'all 0.15s', whiteSpace: 'nowrap'
-          }}>👶 {c.firstName}</button>
+          }}>{c.emoji || '👶'} {c.firstName}</button>
         );
       })}
     </div>
@@ -969,7 +969,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <h1 style={{ ...S.h1, color: THEME.text }}>👶 {child ? `${child.firstName} ${child.lastName}` : 'Laddar...'}</h1>
+      <h1 style={{ ...S.h1, color: THEME.text }}>{child?.emoji || '👶'} {child ? `${child.firstName} ${child.lastName}` : 'Laddar...'}</h1>
         {children?.length > 1 && (
           <div style={{ display: 'flex', gap: 4 }}>
             {children.map(c => (
@@ -1688,7 +1688,7 @@ function ChildAccessList({ children }) {
       {children.map(c => (
         <div key={c.child_id} style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 8 }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid ' + THEME.border, fontSize: 13, fontWeight: 600, color: THEME.text }}>
-            👶 {c.firstName} {c.lastName}
+          {c.emoji || '👶'} {c.firstName} {c.lastName}
           </div>
           {c.parentEmails.map((email, i) => (
             <div key={email} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: i < c.parentEmails.length - 1 ? '1px solid ' + THEME.border : 'none' }}>
