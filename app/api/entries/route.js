@@ -48,7 +48,6 @@ export async function GET(request) {
     console.log('First row:', JSON.stringify(rows[0]));
     
     const entries = rows
-      .filter(r => r[1] && r[2])
       .map((r, i) => ({
         id: i + 2,
         child_id: r[0] || null,
@@ -59,7 +58,7 @@ export async function GET(request) {
         amountL: r[5] || null,
         amountR: r[6] || null,
       }))
-      .filter(e => !isNaN(e.time))
+      .filter(e => e.what && e.time && !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
 
     console.log('Parsed entries:', entries.length);
