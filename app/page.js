@@ -702,7 +702,7 @@ export default function App() {
     setSaving(true);
     const res = await fetch('/api/entries/' + editEntry.id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit, child_id: editEntry.child_id || selectedChild?.child_id }),
+      body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit, child_id: editEntry.child_id || selectedChild?.child_id, amountL: editEntry.amountL || null, amountR: editEntry.amountR || null }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setEditEntry(null); }
     else showToast('Något gick fel');

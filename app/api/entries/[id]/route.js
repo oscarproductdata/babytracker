@@ -15,16 +15,16 @@ export async function PUT(request, context) {
   try {
     const { id } = await context.params;
     const row = parseInt(id);
-    const { what, time, amount, unit } = await request.json();
+    const { what, time, amount, unit, child_id, amountL, amountR } = await request.json();
     const sheets = await getSheet();
     const serial = toStockholmSerial(time);
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A${row}:F${row}`,
+      range: `${SHEET_NAME}!A${row}:G${row}`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [["", what, serial, amount || "", "", unit || "n/a"]],
+        values: [[child_id || "", what, serial, amount || "", unit || "n/a", amountL || "", amountR || ""]],
       },
     });
 
@@ -71,7 +71,7 @@ export async function DELETE(request, context) {
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A${row}:F${row}`,
+      range: `${SHEET_NAME}!A${row}:G${row}`,
     });
 
     return Response.json({ success: true });
