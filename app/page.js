@@ -25,6 +25,7 @@ const THEME = {
     'Vikt':       { base: '#0C79DE', chart: 'rgba(12,121,222,0.25)', card: '#E6F3FF', text: '#0068C8' },
     'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',   card: '#fef3c7', text: '#78350f' },
     'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
+    'Promenad':   { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
   },
   categoryDefault: { base: '#6b6860', chart: 'rgba(107,104,96,0.25)', card: '#f1efe8', text: '#44403c' },
 };
@@ -645,8 +646,11 @@ export default function App() {
 
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchChild(); } }, [session, fetchEntries, fetchCategories, fetchChild]);
   useEffect(() => { 
-    if (page === 'add' && !form.what && !timerRunning) setForm(f => ({ ...f, what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min', child_id: selectedChild?.child_id || f.child_id }));
-  }, [page]);
+    if (page === 'add' && !form.what && !timerRunning) {
+      const defaultCat = selectedChild?.type === 'hund' ? 'Promenad' : 'Amning';
+      setForm(f => ({ ...f, what: defaultCat, time: nowStockholm(), amount: '', unit: unitMap[defaultCat] || 'min', child_id: selectedChild?.child_id || f.child_id }));
+    }
+  }, [page, selectedChild]);
 
   const handleChildSelect = useCallback((c) => {
     setSelectedChild(c);
@@ -675,7 +679,11 @@ export default function App() {
     </div>
   );
 
-  const catNames = categories.map(c => c.name);
+  const isDog = selectedChild?.type === 'hund';
+  const sortedCategories = isDog
+    ? [...categories].filter(c => c.name !== 'Amning').sort((a, b) => a.name === 'Promenad' ? -1 : b.name === 'Promenad' ? 1 : 0)
+    : categories;
+  const catNames = sortedCategories.map(c => c.name);
 
   const handleCategoryChange = (cat, isEdit = false) => {
     const unit = unitMap[cat] || 'n/a';
@@ -704,6 +712,12 @@ export default function App() {
       if (timers['Sömn']) { clearInterval(timers['Sömn'].interval); localStorage.removeItem('timer_Sömn'); }
       setTimers(t => { const n = { ...t }; delete n['Sömn']; return n; });
     }
+    if (form.what === 'Promenad') {
+      const elapsed = timers['Promenad']?.elapsed || 0;
+      if (elapsed > 0) submittedForm.amount = String(Math.ceil(elapsed / 60));
+      if (timers['Promenad']) { clearInterval(timers['Promenad'].interval); localStorage.removeItem('timer_Promenad'); }
+      setTimers(t => { const n = { ...t }; delete n['Promenad']; return n; });
+    }
   
     const entryChildId = (form.what === 'Amning'
       ? timers['Amning_L']?.child_id || timers['Amning_R']?.child_id
@@ -728,6 +742,22 @@ export default function App() {
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ what: 'Sömn', time: Date.now(), amount: String(mins), unit: 'min', amountL: null, amountR: null, child_id: timers['Sömn']?.child_id || selectedChild?.child_id || 'ellie_001' }),
+    });
+    if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); }
+    else showToast('Något gick fel');
+    setSaving(false);
+  };
+
+  const submitPromenad = async () => {
+    const elapsed = timers['Promenad']?.elapsed || 0;
+    if (elapsed === 0) { showToast('Ingen tid registrerad'); return; }
+    const mins = Math.ceil(elapsed / 60);
+    setSaving(true);
+    if (timers['Promenad']) { clearInterval(timers['Promenad'].interval); localStorage.removeItem('timer_Promenad'); }
+    setTimers(t => { const n = { ...t }; delete n['Promenad']; return n; });
+    const res = await fetch('/api/entries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ what: 'Promenad', time: Date.now(), amount: String(mins), unit: 'min', amountL: null, amountR: null, child_id: timers['Promenad']?.child_id || selectedChild?.child_id || 'ellie_001' }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); }
     else showToast('Något gick fel');
@@ -783,7 +813,7 @@ export default function App() {
           <span style={{ fontSize: 13, fontWeight: 400, color: THEME.textFaint }}>Lägg till familj</span>
         </button>
       </div>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={handleChildSelect} darkMode={darkMode} onDarkModeToggle={handleDarkModeToggle} onCategoryClick={handleCategoryClick} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={sortedCategories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={handleChildSelect} darkMode={darkMode} onDarkModeToggle={handleDarkModeToggle} onCategoryClick={handleCategoryClick} />}
       {page === 'log' && <Log entries={entries.filter(e => e.child_id === selectedChild?.child_id)} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what, selectedChild?.child_id)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
       {page === 'utveckling' && <Utveckling birthTs={birthTs} child={selectedChild} />}
@@ -883,7 +913,7 @@ export default function App() {
               <div key="amning-banner" onClick={() => { handleCategoryChange('Amning'); setPage('add'); }} style={{
                 position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
                 width: 'calc(100% - 48px)', maxWidth: 432,
-                background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
+                background: 'rgba(231, 0, 93, 0.15)', border: '1px solid rgba(231, 0, 93, 0.35)',
                 borderRadius: 20, padding: '12px 14px',
                 display: 'flex', flexDirection: 'column', gap: 10,
                 zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
@@ -909,12 +939,12 @@ export default function App() {
                     return (
                       <div key={side} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                          <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 2 }}>{side === 'L' ? '⬅ Vänster' : 'Höger ➡'}</div>
-                          <div style={{ fontSize: 20, fontWeight: 700, color: running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '1px' }}>{formatTimer(elapsed)}</div>
+                          <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 2, height: 16, display: 'flex', alignItems: 'center' }}>{side === 'L' ? '⬅ Vänster' : 'Höger ➡'}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: running ? '#f472b6' : THEME.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '1px', lineHeight: 1 }}>{formatTimer(elapsed)}</div>
                         </div>
                         <button onClick={e => { e.stopPropagation(); running ? pauseTimer(key) : startTimer(key); }} style={{
                           width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                          background: running ? THEME.timer : 'rgba(255,255,255,0.25)',
+                          background: running ? 'linear-gradient(135deg, #E7005D, #f472b6)' : 'rgba(231,0,93,0.25)',
                           color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
                           flexShrink: 0,
                         }}>
@@ -942,20 +972,20 @@ export default function App() {
               <div key={cat} onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
                 position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
                 width: 'calc(100% - 48px)', maxWidth: 432,
-                background: cat === 'Sömn' ? 'rgba(30, 80, 180, 0.3)' : 'rgba(22, 175, 93, 0.25)',
-                border: '1px solid ' + (cat === 'Sömn' ? 'rgba(100, 150, 255, 0.4)' : 'rgba(22, 175, 93, 0.4)'),
+                background: cat === 'Sömn' ? 'rgba(30, 80, 180, 0.3)' : cat === 'Promenad' ? 'rgba(244, 166, 0, 0.25)' : 'rgba(22, 175, 93, 0.25)',
+                border: '1px solid ' + (cat === 'Sömn' ? 'rgba(100, 150, 255, 0.4)' : cat === 'Promenad' ? 'rgba(244, 166, 0, 0.5)' : 'rgba(22, 175, 93, 0.4)'),
                 borderRadius: 20, padding: '12px 14px',
-                display: 'flex', flexDirection: cat === 'Sömn' ? 'column' : 'row', gap: 10,
-                zIndex: 150, boxShadow: cat === 'Sömn' ? '0 4px 24px rgba(30,80,180,0.2)' : '0 4px 20px rgba(0,0,0,0.12)',
+                display: 'flex', flexDirection: (cat === 'Sömn' || cat === 'Promenad') ? 'column' : 'row', gap: 10,
+                zIndex: 150, boxShadow: (cat === 'Sömn' || cat === 'Promenad') ? '0 4px 24px rgba(0,0,0,0.15)' : '0 4px 20px rgba(0,0,0,0.12)',
                 cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                 backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
               }}>
-                {cat === 'Sömn' ? (
+                {cat === 'Sömn' || cat === 'Promenad' ? (
                   <>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 22, animation: timers[cat]?.running ? 'sleepFloat 4s ease-in-out infinite' : 'none' }}>😴</span>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(180,200,255,0.9)' }}>Sömn pågår {timers[cat]?.child_id ? `(${children.find(c => c.child_id === timers[cat]?.child_id)?.firstName || ''})` : ''}</span>
+                      <span style={{ fontSize: 22, animation: timers[cat]?.running ? 'sleepFloat 4s ease-in-out infinite' : 'none' }}>{emojiMap[cat] || (cat === 'Sömn' ? '😴' : '🐾')}</span>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: cat === 'Promenad' ? 'rgba(255,220,100,0.95)' : 'rgba(180,200,255,0.9)' }}>{cat === 'Sömn' ? 'Sömn' : 'Promenad'} pågår {timers[cat]?.child_id ? `(${children.find(c => c.child_id === timers[cat]?.child_id)?.firstName || ''})` : ''}</span>
                       </div>
                       <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Sömn-timer?')) resetTimer(cat); }} style={{
                         background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 20,
@@ -964,22 +994,22 @@ export default function App() {
                       }}>Avbryt</button>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '8px 12px' }}>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: '#a0c0ff', fontVariantNumeric: 'tabular-nums', letterSpacing: '1px' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: cat === 'Promenad' ? '#f4c542' : '#a0c0ff', fontVariantNumeric: 'tabular-nums', letterSpacing: '1px' }}>
                         {formatTimer(timers[cat]?.elapsed || 0)}
                       </div>
                       <button onClick={e => { e.stopPropagation(); timers[cat]?.running ? pauseTimer(cat) : startTimer(cat); }} style={{
                       width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                      background: timers[cat]?.running ? 'rgba(100,150,255,0.5)' : 'rgba(100,150,255,0.3)',
+                      background: timers[cat]?.running ? (cat === 'Promenad' ? 'rgba(244,166,0,0.6)' : 'rgba(100,150,255,0.5)') : (cat === 'Promenad' ? 'rgba(244,166,0,0.3)' : 'rgba(100,150,255,0.3)'),
                       color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                     }}>
                       {timers[cat]?.running ? '⏸' : '▶'}
                     </button>
                     </div>
-                    <button onClick={e => { e.stopPropagation(); submitSomn(); }} style={{
+                    <button onClick={e => { e.stopPropagation(); cat === 'Sömn' ? submitSomn() : submitPromenad(); }} style={{
                       width: '100%', padding: '10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
                       borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'white',
                       WebkitTapHighlightColor: 'transparent',
-                    }}>💾 Spara sömn</button>
+                    }}>💾 Spara {cat === 'Sömn' ? 'sömn' : 'promenad'}</button>
                     <style>{`
                       @keyframes sleepFloat {
                         0%, 100% { transform: translateY(0px) rotate(-5deg); opacity: 0.9; }
@@ -1342,26 +1372,27 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
         const elapsed = t?.elapsed || 0;
         return (
           <div key={side} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: THEME.textMuted, marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: THEME.textMuted, marginBottom: 8, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {side === 'L' ? '⬅ Vänster' : 'Höger ➡'}
             </div>
-            <div style={{ fontSize: 36, fontWeight: 700, color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 12, letterSpacing: '-1px' }}>
+            <div style={{ fontSize: 36, fontWeight: 700, color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 12, letterSpacing: '-1px', lineHeight: 1 }}>
               {formatTimer(elapsed)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ height: 44, display: 'flex', alignItems: 'stretch', width: '100%' }}>
               {!running && elapsed === 0 && (
-                <button onClick={() => onStartTimer(key)} style={{ padding: '10px', background: 'linear-gradient(135deg, #16AF5D, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => onStartTimer(key)} style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg, #E7005D, #f472b6)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   ▶ Starta {side}
                 </button>
               )}
               {running && (
-                <button onClick={() => onPauseTimer(key)} style={{ padding: '10px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => onPauseTimer(key)} style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg, #E7005D, #f472b6)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   ⏸ Pausa {side}
                 </button>
               )}
               {!running && elapsed > 0 && (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => onStartTimer(key)} style={{ flex: 1, padding: '10px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                  <button onClick={() => onStartTimer(key)} style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg, #E7005D, #f472b6)', color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                     ▶
                   </button>
                   <button onClick={() => onStopTimer(key)} style={{ flex: 1, padding: '10px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -1372,6 +1403,7 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
                   </button>
                 </div>
               )}
+              </div>
               {elapsed > 0 && (
                 <div style={{ fontSize: 11, color: THEME.textMuted }}>
                   {Math.ceil(elapsed / 60) || 1} min
@@ -1400,11 +1432,48 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     </FormRow>
   </div>
 ) : null}
-{form.what === 'Sömn' && (
+{form.what === 'Promenad' && (
+  <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
+    <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 8 }}>Promenaden pågår</div>
+    <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: timers['Promenad']?.running ? '#F4A600' : THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
+      {formatTimer(timers['Promenad']?.elapsed || 0)}
+    </div>
+    {timers['Promenad']?.elapsed > 0 && (
+      <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 12 }}>
+        {Math.ceil((timers['Promenad']?.elapsed || 0) / 60)} min
+      </div>
+    )}
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      {!timers['Promenad']?.running && !timers['Promenad']?.elapsed && (
+        <button onClick={() => onStartTimer('Promenad')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #F4A600, #f7c948)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+        ▶ Starta
+        </button>
+      )}
+      {timers['Promenad']?.running && (
+        <button onClick={() => onPauseTimer('Promenad')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #F4A600, #f7c948)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+          ⏸ Pausa
+        </button>
+      )}
+      {!timers['Promenad']?.running && timers['Promenad']?.elapsed > 0 && (
+        <>
+          <button onClick={() => onStartTimer('Promenad')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #F4A600, #f7c948)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+            ▶ Fortsätt
+          </button>
+          <button onClick={() => onStopTimer('Promenad')} style={{ flex: 1, padding: '12px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+            ⏹ Avsluta
+          </button>
+          <button onClick={() => onResetTimer('Promenad')} style={{ padding: '12px 14px', background: 'none', color: THEME.textMuted, border: '1px solid ' + THEME.border, borderRadius: 10, fontSize: 15, cursor: 'pointer' }}>
+            ↺
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+)}
+  {form.what === 'Sömn' && (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
     <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 8 }}>Sömnlängd</div>
-    <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: timers['Sömn']?.running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
-      {formatTimer(timers['Sömn']?.elapsed || 0)}
+    <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: timers['Sömn']?.running ? '#0ea5e9' : THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>      {formatTimer(timers['Sömn']?.elapsed || 0)}
     </div>
     {timers['Sömn']?.elapsed > 0 && (
       <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 12 }}>
@@ -1413,18 +1482,18 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     )}
     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
       {!timers['Sömn']?.running && !timers['Sömn']?.elapsed && (
-        <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #16AF5D, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-          ▶ Starta
+        <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #1e50b4, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+        ▶ Starta
         </button>
       )}
       {timers['Sömn']?.running && (
-        <button onClick={() => onPauseTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => onPauseTimer('Sömn')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #1e50b4, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
           ⏸ Pausa
         </button>
       )}
       {!timers['Sömn']?.running && timers['Sömn']?.elapsed > 0 && (
         <>
-          <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #1e50b4, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
             ▶ Fortsätt
           </button>
           <button onClick={() => onStopTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
