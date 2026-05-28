@@ -852,13 +852,26 @@ export default function App() {
               <div style={{ ...S.addCircle, background: page === 'add' ? THEME.accentDark : THEME.accent }}>
                 <PlusIcon />
               </div>
-              {timerRunning && (
-                <div style={{
-                  position: 'absolute', top: 0, right: 0,
-                  width: 10, height: 10, borderRadius: '50%',
-                  background: THEME.timer, border: '2px solid ' + THEME.bg2,
-                }} />
-              )}
+              {timerRunning && (() => {
+                const hasAmning = activeTimerCats.some(c => c.startsWith('Amning'));
+                const hasSomn = activeTimerCats.includes('Sömn');
+                const hasPromenad = activeTimerCats.includes('Promenad');
+                const activeColors = [
+                  ...(hasAmning ? ['#E7005D'] : []),
+                  ...(hasSomn ? ['#0ea5e9'] : []),
+                  ...(hasPromenad ? ['#F4A600'] : []),
+                ];
+                const dotBg = activeColors.length === 0 ? THEME.timer
+                  : activeColors.length === 1 ? activeColors[0]
+                  : `linear-gradient(135deg, ${activeColors.join(', ')})`;
+                return (
+                  <div style={{
+                    position: 'absolute', top: 0, right: 0,
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: dotBg, border: '2px solid ' + THEME.bg2,
+                  }} />
+                );
+              })()}
             </div>
           </button>
         ) : (
