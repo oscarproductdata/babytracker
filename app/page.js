@@ -1,6 +1,6 @@
 "use client";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 
 const TIMEZONE = "Europe/Stockholm";
 
@@ -104,7 +104,7 @@ function toDatetimeLocal(ts) {
 
 function nowStockholm() { return toDatetimeLocal(Date.now()); }
 
-function TrendChart({ entries, categories, emojiMap, darkMode }) {
+const TrendChart = memo(function TrendChart({ entries, categories, emojiMap, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const chartCats = categories.filter(c => c.name !== 'Vikt');
@@ -178,9 +178,9 @@ function TrendChart({ entries, categories, emojiMap, darkMode }) {
       </div>
     </div>
   );
-}
+});
 
-function GrowthChart({ entries, birthTs, darkMode, child }) {
+const GrowthChart = memo(function GrowthChart({ entries, birthTs, darkMode, child }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const [range, setRange] = useState(13);
@@ -376,9 +376,9 @@ function GrowthChart({ entries, birthTs, darkMode, child }) {
       </div>
     </div>
   );
-}
+});
 
-function WeightChart({ entries, darkMode }) {
+const WeightChart = memo(function WeightChart({ entries, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const cat = getCat('Vikt');
@@ -416,9 +416,9 @@ function WeightChart({ entries, darkMode }) {
       </div>
     </div>
   );
-}
+});
 
-function LengthChart({ entries, darkMode }) {
+const LengthChart = memo(function LengthChart({ entries, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const cat = getCat('Längd');
@@ -456,7 +456,7 @@ function LengthChart({ entries, darkMode }) {
       </div>
     </div>
   );
-}
+});
 
 function ChildSelector({ children, selectedChild, onSelect }) {
   if (!children || children.length <= 1) return null;
