@@ -1,6 +1,6 @@
 "use client";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 
 const TIMEZONE = "Europe/Stockholm";
 
@@ -648,6 +648,20 @@ export default function App() {
     if (page === 'add' && !form.what && !timerRunning) setForm(f => ({ ...f, what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min', child_id: selectedChild?.child_id || f.child_id }));
   }, [page]);
 
+  const handleChildSelect = useCallback((c) => {
+    setSelectedChild(c);
+    setBirthTs(c.birthTs);
+    setForm(f => ({ ...f, child_id: c.child_id }));
+  }, []);
+
+  const handleDarkModeToggle = useCallback(() => setDarkMode(d => !d), []);
+
+  const handleCategoryClick = useCallback((cat) => {
+    const unit = unitMap[cat] || 'n/a';
+    setForm(f => ({ ...f, what: cat, time: nowStockholm(), amount: '', unit }));
+    setPage('add');
+  }, [unitMap]);
+
   if (status === 'loading') return <Loading />;
   if (!session) return <Login />;
   if (session && children.length === 0 && !loading) return (
@@ -769,11 +783,7 @@ export default function App() {
           <span style={{ fontSize: 13, fontWeight: 400, color: THEME.textFaint }}>Lägg till familj</span>
         </button>
       </div>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={c => { setSelectedChild(c); setBirthTs(c.birthTs); }} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
-        const unit = unitMap[cat] || 'n/a';
-        setForm(f => ({ ...f, what: cat, time: nowStockholm(), amount: '', unit }));
-        setPage('add');
-      }} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={handleChildSelect} darkMode={darkMode} onDarkModeToggle={handleDarkModeToggle} onCategoryClick={handleCategoryClick} />}
       {page === 'log' && <Log entries={entries.filter(e => e.child_id === selectedChild?.child_id)} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what, selectedChild?.child_id)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
       {page === 'utveckling' && <Utveckling birthTs={birthTs} child={selectedChild} />}
@@ -884,7 +894,7 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 22, animation: (timers['Amning_L']?.running || timers['Amning_R']?.running) ? 'amningSway 2s ease-in-out infinite' : 'none' }}>🤱</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: THEME.text }}>Amning {timers['Amning_L']?.child_id || timers['Amning_R']?.child_id ? `(${children.find(c => c.child_id === (timers['Amning_L']?.child_id || timers['Amning_R']?.child_id))?.firstName || ''})` : ''}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: THEME.text }}>Amning {timers['Amning_L']?.child_id || timers['Amning_R']?.child_id ? `(${children.find(c => c.child_id === (timers['Amning_L']?.child_id || timers['Amning_R']?.child_id))?.firstName || ''})` : ''}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Amning-timers?')) { resetTimer('Amning_L'); resetTimer('Amning_R'); } }} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: THEME.danger, fontWeight: 500 }}>Avbryt</button>
@@ -900,7 +910,7 @@ export default function App() {
                       <div key={side} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 2 }}>{side === 'L' ? '⬅ Vänster' : 'Höger ➡'}</div>
-                          <div style={{ fontSize: 20, fontWeight: 700, color: running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>{formatTimer(elapsed)}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '1px' }}>{formatTimer(elapsed)}</div>
                         </div>
                         <button onClick={e => { e.stopPropagation(); running ? pauseTimer(key) : startTimer(key); }} style={{
                           width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
@@ -985,7 +995,7 @@ export default function App() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: THEME.timer, letterSpacing: '1px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
@@ -1006,9 +1016,9 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs, child, children, selectedChild, onChildSelect, darkMode, onDarkModeToggle }) {
+const Dashboard = memo(function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs, child, children, selectedChild, onChildSelect, darkMode, onDarkModeToggle }) {
   const now = new Date();
-  const childEntries = entries.filter(e => !e.child_id || e.child_id === child?.child_id);
+  const childEntries = useMemo(() => entries.filter(e => !e.child_id || e.child_id === child?.child_id), [entries, child?.child_id]);
   const weightEntries = childEntries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const lengthEntries = childEntries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
   const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd' && c.name !== 'Ersättning');
@@ -1163,7 +1173,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       )}
     </div>
   );
-}
+});
 
 function Log({ entries, onEdit, emojiMap, categories, selectedChild }) {
   const [selectedCats, setSelectedCats] = useState([]);
