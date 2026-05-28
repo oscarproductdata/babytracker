@@ -815,7 +815,7 @@ export default function App() {
       </div>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={sortedCategories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={handleChildSelect} darkMode={darkMode} onDarkModeToggle={handleDarkModeToggle} onCategoryClick={handleCategoryClick} />}
       {page === 'log' && <Log entries={entries.filter(e => e.child_id === selectedChild?.child_id)} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what, selectedChild?.child_id)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what, selectedChild?.child_id)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} entries={entries} selectedChild={selectedChild} />}
       {page === 'utveckling' && <Utveckling birthTs={birthTs} child={selectedChild} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} fetchChild={fetchChild} children={children} selectedChild={selectedChild} showAddChild={showAddChild} onAddChildClose={() => setShowAddChild(false)} />}
 
@@ -1283,7 +1283,7 @@ function Log({ entries, onEdit, emojiMap, categories, selectedChild }) {
   );
 }
 
-function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer, timerCat, timers }) {
+function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange, onSubmit, saving, timerElapsed, timerRunning, onStartTimer, onPauseTimer, onStopTimer, onResetTimer, formatTimer, timerCat, timers, entries, selectedChild }) {
   const isTimerCategory = form.what === 'Amning' || form.what === 'Sömn';
   const isAmning = form.what === 'Amning';
   const showTimer = isTimerCategory && (!timerRunning || timerCat === form.what);
@@ -1362,9 +1362,37 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
             </FormRow>
           )}
           </div>
+          {isAmning && (() => {
+            const lastAmning = (timers['Amning_L'] || timers['Amning_R']) ? null :
+              [...(window.__entries || [])].filter(e => e.what === 'Amning').sort((a,b) => b.time - a.time)[0];
+            const lastSide = lastAmning ? (parseFloat(lastAmning.amountR || 0) > parseFloat(lastAmning.amountL || 0) ? 'R' : parseFloat(lastAmning.amountL || 0) > 0 ? 'L' : null) : null;
+            return null;
+          })()}
           {isAmning && (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12 }}>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+  {(() => {
+    const amningEntries = (entries || []).filter(e => e.what === 'Amning' && (!selectedChild || e.child_id === selectedChild.child_id)).sort((a,b) => b.time - a.time);
+    const last = amningEntries[0];
+    if (!last) return null;
+    const lMins = parseFloat(last.amountL || 0);
+    const rMins = parseFloat(last.amountR || 0);
+    const lastSide = lMins > rMins ? 'L' : rMins > lMins ? 'R' : lMins > 0 ? 'L' : null;
+    const nextSide = lastSide === 'L' ? 'R' : lastSide === 'R' ? 'L' : null;
+    if (!lastSide) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '10px 12px', background: 'rgba(231,0,93,0.08)', borderRadius: 10, border: '1px solid rgba(231,0,93,0.2)' }}>
+        <div style={{ fontSize: 12, color: THEME.textMuted }}>
+          <span>Senast: <strong style={{ color: THEME.text }}>{lastSide === 'L' ? '⬅ Vänster' : 'Höger ➡'}</strong></span>
+        </div>
+        {nextSide && (
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#E7005D' }}>
+            Börja {nextSide === 'L' ? '⬅ Vänster' : 'Höger ➡'}
+          </div>
+        )}
+      </div>
+    );
+  })()}
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
       {['L', 'R'].map(side => {
         const key = `Amning_${side}`;
         const t = timers[key];
