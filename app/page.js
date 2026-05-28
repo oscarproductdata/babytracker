@@ -1385,18 +1385,6 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
             const nextSide = _lastSide === 'L' ? 'R' : _lastSide === 'R' ? 'L' : null;
             return (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12 }}>
-  {_lastSide && (
-    <div style={{ marginBottom: 16, padding: '10px 12px', background: 'rgba(231,0,93,0.08)', borderRadius: 10, border: '1px solid rgba(231,0,93,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <div style={{ fontSize: 12, color: THEME.textMuted }}>
-        Senast: <strong style={{ color: THEME.text }}>{_lastSide === 'L' ? '⬅ Vänster' : 'Höger ➡'}</strong>
-      </div>
-      {nextSide && (
-        <div style={{ fontSize: 11, color: '#E7005D', fontWeight: 600, opacity: 0.8 }}>
-          Börja med {nextSide === 'L' ? 'vänster' : 'höger'} →
-        </div>
-      )}
-    </div>
-  )}
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
       {['L', 'R'].map(side => {
         const key = `Amning_${side}`;
@@ -1404,10 +1392,10 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
         const running = t?.running || false;
         const elapsed = t?.elapsed || 0;
         return (
-          <div key={side} style={{ textAlign: 'center', borderRadius: 12, border: nextSide === side ? '1.5px solid rgba(231,0,93,0.5)' : '1.5px solid transparent', padding: nextSide === side ? '8px 6px 6px' : '8px 6px 6px', background: nextSide === side ? 'rgba(231,0,93,0.05)' : 'transparent', position: 'relative' }}>
-            {nextSide === side && (
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#E7005D', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Börja med</div>
-            )}
+          <div key={side} style={{ textAlign: 'center', borderRadius: 12, border: nextSide === side ? '1.5px solid rgba(231,0,93,0.5)' : '1.5px solid transparent', padding: '8px 6px 6px', background: nextSide === side ? 'rgba(231,0,93,0.05)' : 'transparent', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#E7005D', textTransform: 'uppercase', letterSpacing: '0.05em', height: 14, marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {nextSide === side ? 'Börja med' : ''}
+            </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: nextSide === side ? '#E7005D' : THEME.textMuted, marginBottom: 8, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {side === 'L' ? '⬅ Vänster' : 'Höger ➡'}
             </div>
