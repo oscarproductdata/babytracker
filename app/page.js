@@ -180,6 +180,158 @@ function TrendChart({ entries, categories, emojiMap, darkMode }) {
   );
 }
 
+function GrowthChart({ entries, birthTs, darkMode }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  const [range, setRange] = useState(13);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.Chart || !canvasRef.current || !birthTs) return;
+    if (chartRef.current) chartRef.current.destroy();
+    const timeout = setTimeout(() => {
+      const resolvedTick = getComputedStyle(document.documentElement).getPropertyValue('--text-faint').trim();
+      const resolvedGrid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+
+      // WHO girls percentiles — one point per week, x = days from birth
+      const whoWeeks = Array.from({ length: 53 }, (_, i) => i);
+      const p3  = [2.40,2.52,2.76,2.97,3.15,3.31,3.46,3.59,3.72,3.84,3.95,4.06,4.16,4.26,4.36,4.45,4.54,4.63,4.71,4.80,4.88,4.95,5.03,5.10,5.17,5.24,5.31,5.37,5.44,5.50,5.56,5.62,5.68,5.73,5.79,5.84,5.89,5.94,5.99,6.04,6.09,6.13,6.18,6.22,6.27,6.31,6.35,6.40,6.44,6.48,6.52,6.56,6.60];
+      const p15 = [2.76,2.93,3.21,3.46,3.68,3.88,4.06,4.22,4.38,4.52,4.66,4.79,4.91,5.03,5.14,5.25,5.35,5.45,5.55,5.64,5.73,5.82,5.90,5.99,6.07,6.14,6.22,6.30,6.37,6.44,6.51,6.58,6.65,6.71,6.78,6.84,6.90,6.97,7.03,7.09,7.14,7.20,7.26,7.31,7.37,7.42,7.47,7.53,7.58,7.63,7.68,7.73,7.78];
+      const p50 = [3.23,3.44,3.76,4.05,4.30,4.53,4.73,4.92,5.09,5.26,5.42,5.57,5.71,5.85,5.98,6.11,6.23,6.35,6.46,6.57,6.68,6.78,6.88,6.98,7.07,7.16,7.25,7.34,7.43,7.51,7.59,7.67,7.75,7.83,7.90,7.98,8.05,8.12,8.19,8.26,8.33,8.40,8.46,8.53,8.59,8.65,8.71,8.78,8.84,8.90,8.95,9.01,9.07];
+      const p85 = [3.71,3.96,4.33,4.66,4.95,5.22,5.46,5.68,5.88,6.07,6.25,6.42,6.58,6.74,6.89,7.03,7.17,7.30,7.43,7.55,7.67,7.79,7.90,8.01,8.12,8.22,8.32,8.42,8.52,8.61,8.70,8.79,8.88,8.97,9.05,9.14,9.22,9.30,9.38,9.46,9.54,9.61,9.69,9.76,9.84,9.91,9.98,10.05,10.12,10.19,10.26,10.33,10.40];
+      const p97 = [4.01,4.29,4.70,5.06,5.38,5.67,5.93,6.17,6.39,6.59,6.78,6.97,7.14,7.31,7.47,7.63,7.77,7.92,8.05,8.19,8.31,8.44,8.56,8.68,8.79,8.90,9.01,9.11,9.22,9.32,9.41,9.51,9.60,9.70,9.79,9.88,9.97,10.05,10.14,10.22,10.31,10.39,10.47,10.55,10.63,10.71,10.78,10.86,10.94,11.01,11.08,11.15,11.23];
+
+      const toPoint = (w, val) => ({ x: w * 7, y: val });
+
+      // Ellie's actual weigh-ins
+      const viktEntries = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a,b) => a.time - b.time);
+      const dipCutoff = 14; // days
+
+      const dipPoints = [];
+      const normalPoints = [];
+      viktEntries.forEach(e => {
+        const dayAge = (e.time - birthTs) / (24 * 3600 * 1000);
+        const kg = parseFloat(e.amount) > 100 ? parseFloat(e.amount) / 1000 : parseFloat(e.amount);
+        if (dayAge <= dipCutoff) dipPoints.push({ x: dayAge, y: kg });
+        else normalPoints.push({ x: dayAge, y: kg });
+      });
+
+      console.log('dip points:', dipPoints, 'normal points:', normalPoints);
+
+      // Show latest weight as standalone solid dot, no shared points
+      const lastEntry = viktEntries[viktEntries.length - 1];
+      if (lastEntry) {
+        const dayAge = (lastEntry.time - birthTs) / (24 * 3600 * 1000);
+        const kg = parseFloat(lastEntry.amount) > 100 ? parseFloat(lastEntry.amount) / 1000 : parseFloat(lastEntry.amount);
+        normalPoints.push({ x: dayAge, y: kg });
+        // Remove from dipPoints if it's there to avoid overlap
+        const dipIdx = dipPoints.findIndex(p => p.x === dayAge && p.y === kg);
+        if (dipIdx >= 0) dipPoints.splice(dipIdx, 1);
+      }
+
+      const getWeightColor = (point, p3, p15, p85, p97) => {
+        if (!point) return '#16AF5D';
+        const weekIndex = Math.round(point.x / 7);
+        if (weekIndex < 0 || weekIndex >= p3.length) return '#16AF5D';
+        const w = point.y;
+        if (w < p3[weekIndex] || w > p97[weekIndex]) return '#FF0004';
+        if (w < p15[weekIndex] || w > p85[weekIndex]) return '#F4A600';
+        return '#16AF5D';
+      };
+
+      chartRef.current = new window.Chart(canvasRef.current, {
+        data: {
+          datasets: [
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p97[i])), borderColor: 'rgba(55,138,221,0.45)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p85[i])), borderColor: 'rgba(55,138,221,0.15)', borderWidth: 0, backgroundColor: 'rgba(55,138,221,0.08)', pointRadius: 0, tension: 0.3, fill: '+1' },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p50[i])), borderColor: '#378ADD', borderWidth: 2.5, backgroundColor: 'rgba(55,138,221,0.08)', pointRadius: 0, tension: 0.3, fill: '+1' },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p15[i])), borderColor: 'rgba(55,138,221,0.15)', borderWidth: 0, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p3[i])), borderColor: 'rgba(55,138,221,0.45)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+            { type: 'scatter', label: 'Viktdipp', data: dipPoints, borderColor: 'rgba(150,150,150,0.6)', backgroundColor: 'rgba(150,150,150,0.4)', pointRadius: 5, pointHoverRadius: 7, pointStyle: 'circle', showLine: true, borderDash: [4,3], tension: 0, spanGaps: false },
+            { type: 'scatter', label: 'Ellie', data: normalPoints, borderColor: normalPoints.map(p => getWeightColor(p, p3, p15, p85, p97)), backgroundColor: normalPoints.map(p => getWeightColor(p, p3, p15, p85, p97)), pointRadius: 6, pointHoverRadius: 8, showLine: true, tension: 0 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: ctx => {
+                  const d = new Date(birthTs + ctx[0].parsed.x * 24 * 3600 * 1000);
+                  return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', timeZone: TIMEZONE });
+                },
+                label: ctx => {
+                  if (ctx.dataset.label === 'Ellie') return `Ellie: ${ctx.parsed.y.toFixed(2)} kg`;
+                  if (ctx.dataset.label === 'Viktdipp') return `Viktdipp: ${ctx.parsed.y.toFixed(2)} kg`;
+                  return null;
+                },
+                filter: item => item.dataset.label === 'Ellie' || item.dataset.label === 'Viktdipp',
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: range * 7,
+              grid: { color: resolvedGrid },
+              ticks: {
+                color: resolvedTick, font: { size: 10 }, maxRotation: 45,
+                stepSize: 7,
+                callback: (val) => {
+                  const week = val / 7;
+                  if (Number.isInteger(week)) {
+                    const d = new Date(birthTs + val * 24 * 3600 * 1000);
+                    return `V${week} · ${d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', timeZone: TIMEZONE })}`;
+                  }
+                  return '';
+                }
+              }
+            },
+            y: {
+              grid: { color: resolvedGrid },
+              ticks: { color: resolvedTick, font: { size: 11 }, callback: v => v.toFixed(1)+' kg' },
+            }
+          }
+        }
+      });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [entries, birthTs, darkMode, range]);
+
+  return (
+    <div style={S.chartCard}>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: THEME.textFaint, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tillväxtkurva</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[4, 8, 13, 26, 52].map(w => (
+              <button key={w} onClick={() => setRange(w)} style={{
+                fontSize: 11, padding: '3px 8px', borderRadius: 20,
+                border: '1px solid ' + (range === w ? THEME.text : THEME.border),
+                background: range === w ? THEME.text : 'none',
+                color: range === w ? THEME.bg : THEME.textMuted,
+                cursor: 'pointer',
+              }}>{w}v</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: THEME.textFaint, flexWrap: 'wrap' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 16, height: 3, background: '#378ADD', display: 'inline-block', borderRadius: 2 }}></span>p50</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 16, height: 8, background: 'rgba(55,138,221,0.15)', display: 'inline-block', borderRadius: 2 }}></span>p15–p85</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#16AF5D', display: 'inline-block', borderRadius: '50%' }}></span>Normal</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#F4A600', display: 'inline-block', borderRadius: '50%' }}></span>Bevaka</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#FF0004', display: 'inline-block', borderRadius: '50%' }}></span>Utanför</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 16, height: 0, borderTop: '2px dashed rgba(150,150,150,0.6)', display: 'inline-block' }}></span>Viktdipp</span>
+        </div>
+      </div>
+      <div style={{ position: 'relative', height: 200 }}>
+        <canvas ref={canvasRef} role="img" aria-label="Tillväxtkurva" />
+      </div>
+    </div>
+  );
+}
+
 function WeightChart({ entries, darkMode }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
@@ -669,7 +821,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const lengthEntries = entries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
-  const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd');
+  const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd' && c.name !== 'Ersättning');
 
   function ageString(birthTs) {
     if (!birthTs) return null;
@@ -789,6 +941,9 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       {chartJsLoaded && entries.length > 0 && (
         <>
           <div className="fade-up fade-up-4" style={{ padding: '0 16px 8px' }}>
+            <GrowthChart entries={entries} birthTs={birthTs} darkMode={darkMode} />
+          </div>
+          <div className="fade-up fade-up-5" style={{ padding: '0 16px 8px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
             <TrendChart entries={entries} categories={categories} emojiMap={emojiMap} darkMode={darkMode} />
           </div>
