@@ -698,6 +698,22 @@ export default function App() {
     setSaving(false);
   };
 
+  const submitSomn = async () => {
+    const elapsed = timers['Sömn']?.elapsed || 0;
+    if (elapsed === 0) { showToast('Ingen tid registrerad'); return; }
+    const mins = Math.ceil(elapsed / 60);
+    setSaving(true);
+    if (timers['Sömn']) { clearInterval(timers['Sömn'].interval); localStorage.removeItem('timer_Sömn'); }
+    setTimers(t => { const n = { ...t }; delete n['Sömn']; return n; });
+    const res = await fetch('/api/entries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ what: 'Sömn', time: Date.now(), amount: String(mins), unit: 'min', amountL: null, amountR: null, child_id: selectedChild?.child_id || 'ellie_001' }),
+    });
+    if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); }
+    else showToast('Något gick fel');
+    setSaving(false);
+  };
+
   const saveEdit = async () => {
     setSaving(true);
     const res = await fetch('/api/entries/' + editEntry.id, {
@@ -904,33 +920,75 @@ export default function App() {
               );
             }
             return (
-            <div key={cat} className="pressable-scale" onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
-              position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
-              width: 'calc(100% - 48px)', maxWidth: 432,
-              background: 'rgba(22, 175, 93, 0.25)', border: '1px solid rgba(22, 175, 93, 0.4)',
-              borderRadius: 20, padding: '14px 16px',
-              display: 'flex', alignItems: 'center', gap: 10,
-              zIndex: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
-            }}>
-              <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
-                <div className="breathe-ring" style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
-                <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer }} />
+              <div key={cat} onClick={() => { handleCategoryChange(cat); setPage('add'); }} style={{
+                position: 'fixed', bottom: `calc(env(safe-area-inset-bottom) + 96px + ${i * 86}px)`, left: '50%', transform: 'translateX(-50%)',
+                width: 'calc(100% - 48px)', maxWidth: 432,
+                background: cat === 'Sömn' ? 'rgba(30, 80, 180, 0.3)' : 'rgba(22, 175, 93, 0.25)',
+                border: '1px solid ' + (cat === 'Sömn' ? 'rgba(100, 150, 255, 0.4)' : 'rgba(22, 175, 93, 0.4)'),
+                borderRadius: 20, padding: '12px 14px',
+                display: 'flex', flexDirection: cat === 'Sömn' ? 'column' : 'row', gap: 10,
+                zIndex: 150, boxShadow: cat === 'Sömn' ? '0 4px 24px rgba(30,80,180,0.2)' : '0 4px 20px rgba(0,0,0,0.12)',
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
+              }}>
+                {cat === 'Sömn' ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 22, animation: timers[cat]?.running ? 'sleepFloat 4s ease-in-out infinite' : 'none' }}>😴</span>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(180,200,255,0.9)' }}>Sömn pågår</span>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Sömn-timer?')) resetTimer(cat); }} style={{
+                        background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 20,
+                        padding: '5px 10px', cursor: 'pointer', fontSize: 12,
+                        color: THEME.danger, fontWeight: 500
+                      }}>Avbryt</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '8px 12px' }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#a0c0ff', fontVariantNumeric: 'tabular-nums', letterSpacing: '1px' }}>
+                        {formatTimer(timers[cat]?.elapsed || 0)}
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); timers[cat]?.running ? pauseTimer(cat) : startTimer(cat); }} style={{
+                      width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                      background: timers[cat]?.running ? 'rgba(100,150,255,0.5)' : 'rgba(100,150,255,0.3)',
+                      color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {timers[cat]?.running ? '⏸' : '▶'}
+                    </button>
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); submitSomn(); }} style={{
+                      width: '100%', padding: '10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'white',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}>💾 Spara sömn</button>
+                    <style>{`
+                      @keyframes sleepFloat {
+                        0%, 100% { transform: translateY(0px) rotate(-5deg); opacity: 0.9; }
+                        50% { transform: translateY(-6px) rotate(2deg); opacity: 1; }
+                      }
+                    `}</style>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ position: 'relative', width: 14, height: 14, flexShrink: 0 }}>
+                      <div className="breathe-ring" style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
+                      <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: THEME.timer }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
+                      <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
+                        background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 20,
+                        padding: '8px 12px', cursor: 'pointer', fontSize: 14,
+                        color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
+                      }}>Avbryt</button>
+                    </div>
+                  </>
+                )}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: THEME.textMuted }}>{cat} pågår</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: THEME.timer, letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timers[cat]?.elapsed || 0)}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 14, color: '#ffffff', fontWeight: 500, background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '8px 12px' }}>Återgå →</div>
-                <button onClick={e => { e.stopPropagation(); if (confirm(`Vill du verkligen ta bort ${cat}-timern?`)) resetTimer(cat); }} style={{
-                  background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
-                  padding: '8px 12px', cursor: 'pointer', fontSize: 14,
-                  color: THEME.danger, fontWeight: 500, WebkitTapHighlightColor: 'transparent'
-                }}>Avbryt</button>
-              </div>
-            </div>
           );
         });
       })()}
