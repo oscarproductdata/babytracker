@@ -325,6 +325,54 @@ function GrowthChart({ entries, birthTs, darkMode }) {
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 16, height: 0, borderTop: '2px dashed rgba(150,150,150,0.6)', display: 'inline-block' }}></span>Viktdipp</span>
         </div>
       </div>
+      {(() => {
+        const lastVikt = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a,b) => b.time - a.time)[0];
+        if (!lastVikt || !birthTs) return null;
+        const dayAge = (lastVikt.time - birthTs) / (24 * 3600 * 1000);
+        const weekIndex = Math.round(dayAge / 7);
+        const actualKg = parseFloat(lastVikt.amount) > 100 ? parseFloat(lastVikt.amount) / 1000 : parseFloat(lastVikt.amount);
+        const p50vals = [3.23,3.44,3.76,4.05,4.30,4.53,4.73,4.92,5.09,5.26,5.42,5.57,5.71,5.85,5.98,6.11,6.23,6.35,6.46,6.57,6.68,6.78,6.88,6.98,7.07,7.16,7.25,7.34,7.43,7.51,7.59,7.67,7.75,7.83,7.90,7.98,8.05,8.12,8.19,8.26,8.33,8.40,8.46,8.53,8.59,8.65,8.71,8.78,8.84,8.90,8.95,9.01,9.07];
+        const exactWeek = dayAge / 7;
+        const weekFloor = Math.floor(exactWeek);
+        const weekCeil = Math.min(weekFloor + 1, p50vals.length - 1);
+        const fraction = exactWeek - weekFloor;
+        const medianKg = p50vals[weekFloor] + fraction * (p50vals[weekCeil] - p50vals[weekFloor]);
+        const isDipPeriod = dayAge <= 14;
+        const birthVikt = entries.filter(e => e.what === 'Vikt' && e.amount).sort((a,b) => a.time - b.time)[0];
+        const birthKg = birthVikt ? (parseFloat(birthVikt.amount) > 100 ? parseFloat(birthVikt.amount) / 1000 : parseFloat(birthVikt.amount)) : null;
+        const pctOfBirth = birthKg ? (actualKg / birthKg) * 100 : null;
+        const diff = actualKg - medianKg;
+
+        // During dip period: color based on % of birth weight
+        // >93% green, 90-93% yellow, <90% red
+        const dipColor = pctOfBirth >= 93 ? THEME.timer : pctOfBirth >= 90 ? '#F4A600' : '#FF0004';
+        const diffColor = Math.abs(diff) < 0.2 ? THEME.timer : diff < 0 ? '#F4A600' : THEME.timer;
+
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <div style={{ background: THEME.bg, borderRadius: 10, padding: '10px 14px', border: '1px solid ' + THEME.border }}>
+              <div style={{ fontSize: 11, color: THEME.textFaint, marginBottom: 4 }}>Ellies vikt</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: THEME.text }}>{actualKg.toFixed(2)} kg</div>
+              <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>{new Date(lastVikt.time).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', timeZone: TIMEZONE })}</div>
+            </div>
+            {isDipPeriod ? (
+              <div style={{ background: THEME.bg, borderRadius: 10, padding: '10px 14px', border: '1px solid ' + THEME.border }}>
+                <div style={{ fontSize: 11, color: THEME.textFaint, marginBottom: 4 }}>% av födelsevikt</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: dipColor }}>{pctOfBirth?.toFixed(1)}%</div>
+                <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>
+                  {pctOfBirth >= 93 ? '✓ Normal' : pctOfBirth >= 90 ? '⚠ Bevaka' : '✗ Kontakta BVC'}
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: THEME.bg, borderRadius: 10, padding: '10px 14px', border: '1px solid ' + THEME.border }}>
+                <div style={{ fontSize: 11, color: THEME.textFaint, marginBottom: 4 }}>p50 dag {Math.round(dayAge)} (v{exactWeek.toFixed(1)})</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: THEME.text }}>{medianKg.toFixed(2)} kg</div>
+                <div style={{ fontSize: 11, color: diffColor, marginTop: 2 }}>{diff >= 0 ? '+' : ''}{diff.toFixed(2)} kg vs median</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div style={{ position: 'relative', height: 200 }}>
         <canvas ref={canvasRef} role="img" aria-label="Tillväxtkurva" />
       </div>
