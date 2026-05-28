@@ -828,7 +828,7 @@ export default function App() {
             </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button style={{ ...S.modalBtn, color: THEME.danger }} onClick={deleteEntry}>Radera</button>
-            <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={saveEdit} disabled={saving}>
+            <button style={{ ...S.modalBtn, background: THEME.text, color: THEME.bg, borderColor: THEME.text, opacity: saving ? 0.6 : 1 }} onClick={saveEdit} disabled={saving}>
               {saving ? 'Sparar...' : 'Spara'}
             </button>
           </div>
