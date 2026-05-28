@@ -241,11 +241,11 @@ function GrowthChart({ entries, birthTs, darkMode }) {
       chartRef.current = new window.Chart(canvasRef.current, {
         data: {
           datasets: [
-            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p97[i])), borderColor: 'rgba(55,138,221,0.45)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
-            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p85[i])), borderColor: 'rgba(55,138,221,0.15)', borderWidth: 0, backgroundColor: 'rgba(55,138,221,0.08)', pointRadius: 0, tension: 0.3, fill: '+1' },
-            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p50[i])), borderColor: '#378ADD', borderWidth: 2.5, backgroundColor: 'rgba(55,138,221,0.08)', pointRadius: 0, tension: 0.3, fill: '+1' },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p97[i])), borderColor: 'rgba(55,138,221,0.75)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p85[i])), borderColor: 'rgba(55,138,221,0.2)', borderWidth: 0, backgroundColor: 'rgba(55,138,221,0.3)', pointRadius: 0, tension: 0, fill: '+1' },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p50[i])), borderColor: '#378ADD', borderWidth: 2.5, backgroundColor: 'rgba(55,138,221,0.3)', pointRadius: 0, tension: 0, fill: '+1' },
             { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p15[i])), borderColor: 'rgba(55,138,221,0.15)', borderWidth: 0, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
-            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p3[i])), borderColor: 'rgba(55,138,221,0.45)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+            { type: 'line', data: whoWeeks.map((w,i) => toPoint(w, p3[i])), borderColor: 'rgba(55,138,221,0.75)', borderWidth: 1.5, borderDash: [5,4], backgroundColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
             { type: 'scatter', label: 'Viktdipp', data: dipPoints, borderColor: 'rgba(150,150,150,0.6)', backgroundColor: 'rgba(150,150,150,0.4)', pointRadius: 5, pointHoverRadius: 7, pointStyle: 'circle', showLine: true, borderDash: [4,3], tension: 0, spanGaps: false },
             { type: 'scatter', label: 'Ellie', data: normalPoints, borderColor: normalPoints.map(p => getWeightColor(p, p3, p15, p85, p97)), backgroundColor: normalPoints.map(p => getWeightColor(p, p3, p15, p85, p97)), pointRadius: 6, pointHoverRadius: 8, showLine: true, tension: 0 },
           ]
