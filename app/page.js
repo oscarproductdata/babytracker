@@ -180,7 +180,7 @@ function TrendChart({ entries, categories, emojiMap, darkMode }) {
   );
 }
 
-function GrowthChart({ entries, birthTs, darkMode }) {
+function GrowthChart({ entries, birthTs, darkMode, child }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const [range, setRange] = useState(13);
@@ -214,8 +214,6 @@ function GrowthChart({ entries, birthTs, darkMode }) {
         if (dayAge <= dipCutoff) dipPoints.push({ x: dayAge, y: kg });
         else normalPoints.push({ x: dayAge, y: kg });
       });
-
-      console.log('dip points:', dipPoints, 'normal points:', normalPoints);
 
       // Show latest weight as standalone solid dot, no shared points
       const lastEntry = viktEntries[viktEntries.length - 1];
@@ -351,7 +349,7 @@ function GrowthChart({ entries, birthTs, darkMode }) {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
             <div style={{ background: THEME.bg, borderRadius: 10, padding: '10px 14px', border: '1px solid ' + THEME.border }}>
-              <div style={{ fontSize: 11, color: THEME.textFaint, marginBottom: 4 }}>Ellies vikt</div>
+            <div style={{ fontSize: 11, color: THEME.textFaint, marginBottom: 4 }}>{child?.firstName || 'Barnets'} vikt</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: THEME.text }}>{actualKg.toFixed(2)} kg</div>
               <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2 }}>{new Date(lastVikt.time).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', timeZone: TIMEZONE })}</div>
             </div>
@@ -460,6 +458,28 @@ function LengthChart({ entries, darkMode }) {
   );
 }
 
+function ChildSelector({ children, selectedChild, onSelect }) {
+  if (!children || children.length <= 1) return null;
+  return (
+    <div className="cat-tabs" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '0 16px 12px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      {children.map(c => {
+        const isActive = selectedChild?.child_id === c.child_id;
+        return (
+          <button key={c.child_id} onClick={() => onSelect(c)} style={{
+            flexShrink: 0, padding: '8px 16px', borderRadius: 20,
+            border: '1px solid ' + (isActive ? THEME.text : THEME.border),
+            background: isActive ? THEME.text : THEME.bg2,
+            color: isActive ? THEME.bg : THEME.text,
+            fontSize: 13, fontWeight: isActive ? 600 : 400,
+            cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            transition: 'all 0.15s', whiteSpace: 'nowrap'
+          }}>👶 {c.firstName}</button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   const { data: session, status } = useSession();
   const [page, setPage] = useState('dashboard');
@@ -469,11 +489,13 @@ export default function App() {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [toast, setToast] = useState('');
   const [editEntry, setEditEntry] = useState(null);
-  const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a' });
+  const [form, setForm] = useState({ what: '', time: '', amount: '', unit: 'n/a', child_id: 'ellie_001' });
   const [chartJsLoaded, setChartJsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [timers, setTimers] = useState({});
   const [birthTs, setBirthTs] = useState(null);
+  const [children, setChildren] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
@@ -601,20 +623,38 @@ export default function App() {
     setCategoriesLoaded(true);
   }, []);
 
-  const fetchBirth = useCallback(async () => {
+  const fetchChild = useCallback(async () => {
     try {
-      const res = await fetch('/api/birth');
-      if (res.ok) { const data = await res.json(); setBirthTs(data.ts); }
+      const res = await fetch('/api/child');
+      if (res.ok) {
+        const data = await res.json();
+        setChildren(data);
+        if (data.length > 0) {
+          setSelectedChild(data[0]);
+          setBirthTs(data[0].birthTs);
+          setForm(f => ({ ...f, child_id: data[0].child_id }));
+        }
+      }
     } catch(e) { console.error(e); }
   }, []);
 
-  useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchBirth(); } }, [session, fetchEntries, fetchCategories, fetchBirth]);
+  useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchChild(); } }, [session, fetchEntries, fetchCategories, fetchChild]);
   useEffect(() => { 
-    if (page === 'add' && !form.what && !timerRunning) setForm({ what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min' });
+    if (page === 'add' && !form.what && !timerRunning) setForm(f => ({ ...f, what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min' }));
   }, [page]);
 
   if (status === 'loading') return <Loading />;
   if (!session) return <Login />;
+  if (session && children.length === 0 && !loading) return (
+    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:'-apple-system,sans-serif',background:THEME.bg,padding:20,textAlign:'center' }}>
+      <div style={{ fontSize:56,marginBottom:16 }}>🍼</div>
+      <h1 style={{ fontSize:24,fontWeight:700,letterSpacing:'-0.5px',marginBottom:8,color:THEME.text }}>Välkommen!</h1>
+      <p style={{ fontSize:15,color:THEME.textMuted,marginBottom:32 }}>Lägg till ditt första barn för att komma igång.</p>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <AddChildForm onAdded={fetchChild} />
+      </div>
+    </div>
+  );
 
   const catNames = categories.map(c => c.name);
 
@@ -644,7 +684,7 @@ export default function App() {
     console.log('Submitting form:', submittedForm);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null }),
+      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, child_id: selectedChild?.child_id || 'ellie_001' }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
     else showToast('Något gick fel');
@@ -673,15 +713,16 @@ export default function App() {
 
   return (
     <div style={{ ...S.app, background: THEME.bg, color: THEME.text }}>
-      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
+      {children.length > 1 && <ChildSelector children={children} selectedChild={selectedChild} onSelect={c => { setSelectedChild(c); setBirthTs(c.birthTs); }} />}
+      {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={c => { setSelectedChild(c); setBirthTs(c.birthTs); }} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
         const unit = unitMap[cat] || 'n/a';
         setForm({ what: cat, time: nowStockholm(), amount: '', unit });
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
       {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
-      {page === 'utveckling' && <Utveckling birthTs={birthTs} />}
-      {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} />}
+      {page === 'utveckling' && <Utveckling birthTs={birthTs} child={selectedChild} />}
+      {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} fetchChild={fetchChild} children={children} selectedChild={selectedChild} />}
 
       <nav style={{ ...S.nav, background: 'var(--nav-bg)', borderTop: '1px solid ' + THEME.border, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
         <svg width="0" height="0" style={{ position: 'absolute' }}>
@@ -865,7 +906,7 @@ export default function App() {
   );
 }
 
-function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs, darkMode, onDarkModeToggle }) {
+function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCategoryClick, birthTs, child, children, selectedChild, onChildSelect, darkMode, onDarkModeToggle }) {
   const now = new Date();
   const weightEntries = entries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const lengthEntries = entries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
@@ -893,7 +934,19 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
     <div style={S.page}>
       <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div>
-        <h1 style={{ ...S.h1, color: THEME.text }}>👶 Ellie Lund</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 style={{ ...S.h1, color: THEME.text }}>👶 {child ? `${child.firstName} ${child.lastName}` : 'Laddar...'}</h1>
+        {children?.length > 1 && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {children.map(c => (
+              <button key={c.child_id} onClick={() => onChildSelect(c)} style={{
+                width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
+                background: selectedChild?.child_id === c.child_id ? THEME.text : THEME.border,
+              }} />
+            ))}
+          </div>
+        )}
+      </div>
         <p style={{ ...S.sub, color: THEME.textMuted }}>{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE })}</p>
       </div>
       <button className="pressable" onClick={onDarkModeToggle} style={{ background: 'none', border: '1px solid ' + THEME.border, borderRadius: 20, padding: '6px 10px', cursor: 'pointer', fontSize: 16, marginTop: 4, WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s, opacity 0.1s' }}>
@@ -989,7 +1042,7 @@ function Dashboard({ entries, loading, categories, emojiMap, chartJsLoaded, onCa
       {chartJsLoaded && entries.length > 0 && (
         <>
           <div className="fade-up fade-up-4" style={{ padding: '0 16px 8px' }}>
-            <GrowthChart entries={entries} birthTs={birthTs} darkMode={darkMode} />
+            <GrowthChart entries={entries} birthTs={birthTs} darkMode={darkMode} child={child} />
           </div>
           <div className="fade-up fade-up-5" style={{ padding: '0 16px 8px' }}>
             <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Trend senaste 7 dagarna</div>
@@ -1521,7 +1574,137 @@ function Stats({ entries, categories, emojiMap }) {
   );
 }
 
-function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
+function AddChildForm({ onAdded }) {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const save = async () => {
+    if (!firstName.trim() || !birthDate) return;
+    setSaving(true);
+    const res = await fetch('/api/child', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        birthTs: new Date(birthDate).getTime(),
+        dueDate: dueDate ? new Date(dueDate).getTime() : null,
+      }),
+    });
+    if (res.ok) {
+      setFirstName(''); setLastName(''); setBirthDate(''); setDueDate('');
+      setShowForm(false);
+      onAdded();
+    }
+    setSaving(false);
+  };
+
+  if (!showForm) return (
+    <button style={{ ...S.submitBtn, background: THEME.border, color: THEME.text, marginBottom: 8 }} onClick={() => setShowForm(true)}>
+      + Lägg till barn
+    </button>
+  );
+
+  return (
+    <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 8 }}>
+      <FormRow label="Förnamn">
+        <input style={{ ...S.input, color: THEME.text }} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Förnamn" />
+      </FormRow>
+      <FormRow label="Efternamn">
+        <input style={{ ...S.input, color: THEME.text }} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Efternamn" />
+      </FormRow>
+      <FormRow label="Födelsedag">
+        <input type="date" style={{ ...S.input, color: THEME.text }} value={birthDate} onChange={e => setBirthDate(e.target.value)} />
+      </FormRow>
+      <FormRow label="Beräknat datum" last>
+        <input type="date" style={{ ...S.input, color: THEME.text }} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+      </FormRow>
+      <div style={{ display: 'flex', gap: 10, padding: '12px 16px' }}>
+        <button style={{ ...S.modalBtn, color: THEME.textMuted }} onClick={() => setShowForm(false)}>Avbryt</button>
+        <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+          {saving ? 'Sparar...' : 'Spara'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChildAccessList({ children }) {
+  if (!children || children.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {children.map(c => (
+        <div key={c.child_id} style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 8 }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid ' + THEME.border, fontSize: 13, fontWeight: 600, color: THEME.text }}>
+            👶 {c.firstName} {c.lastName}
+          </div>
+          {c.parentEmails.map((email, i) => (
+            <div key={email} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: i < c.parentEmails.length - 1 ? '1px solid ' + THEME.border : 'none' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: THEME.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: THEME.textMuted, flexShrink: 0 }}>
+                {email[0].toUpperCase()}
+              </div>
+              <div style={{ fontSize: 13, color: THEME.textMuted, flex: 1 }}>{email}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShareChildForm({ children, selectedChild }) {
+  const [email, setEmail] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [childToShare, setChildToShare] = useState(selectedChild?.child_id || '');
+
+  useEffect(() => { if (selectedChild) setChildToShare(selectedChild.child_id); }, [selectedChild]);
+
+  const share = async () => {
+    if (!email.trim() || !childToShare) return;
+    setSaving(true);
+    setMessage('');
+    const res = await fetch('/api/child', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ child_id: childToShare, email: email.trim() }),
+    });
+    const data = await res.json();
+    if (res.ok) { setMessage('✓ Delat!'); setEmail(''); }
+    else setMessage('✗ ' + (data.error || 'Något gick fel'));
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 8 }}>
+      {children?.length > 1 && (
+        <FormRow label="Barn">
+          <select style={{ ...S.input, color: THEME.text }} value={childToShare} onChange={e => setChildToShare(e.target.value)}>
+            {children.map(c => <option key={c.child_id} value={c.child_id}>{c.firstName} {c.lastName}</option>)}
+          </select>
+        </FormRow>
+      )}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid ' + THEME.border }}>
+        <input
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid ' + THEME.borderHover, background: THEME.bg, color: THEME.text, fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+          value={email} onChange={e => setEmail(e.target.value)} placeholder="namn@exempel.se" type="email"
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 10, padding: '12px 16px', alignItems: 'center' }}>
+        {message && <span style={{ fontSize: 12, color: message.startsWith('✓') ? THEME.timer : THEME.danger, flex: 1 }}>{message}</span>}
+        <button style={{ ...S.modalBtn, background: 'linear-gradient(135deg, #16AF5D, #0ea5e9)', color: 'white', border: 'none', opacity: saving ? 0.6 : 1 }} onClick={share} disabled={saving}>
+          {saving ? 'Delar...' : 'Dela'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Settings({ categories, setCategories, emojiMap, session, onSignOut, fetchChild, children, selectedChild }) {
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -1549,7 +1732,13 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut }) {
         <p style={{ ...S.sub, color: THEME.textMuted }}>{session.user.email}</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Kategorier</div>
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Lägg till barn</div>
+        <AddChildForm onAdded={() => { fetchChild(); }} />
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint, marginTop: 24 }}>Åtkomst</div>
+        <ChildAccessList children={children} />
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Dela med annan</div>
+        <ShareChildForm children={children} selectedChild={selectedChild} />
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint, marginTop: 24 }}>Kategorier</div>
         <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border }}>
           {categories.map(({ name, emoji }, i) => {
             const c = getCat(name);

@@ -48,9 +48,10 @@ export async function GET(request) {
     console.log('First row:', JSON.stringify(rows[0]));
     
     const entries = rows
-    .filter(r => r[1] && r[2])
+      .filter(r => r[1] && r[2])
       .map((r, i) => ({
         id: i + 2,
+        child_id: r[0] || null,
         what: r[1] || "",
         time: parseSheetDate(r[2]),
         amount: r[3] || null,
@@ -74,7 +75,7 @@ export async function POST(request) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { what, time, amount, unit, amountL, amountR } = await request.json();
+    const { what, time, amount, unit, amountL, amountR, child_id } = await request.json();
     const sheets = await getSheet();
     const serial = toStockholmSerial(time);
 
@@ -89,9 +90,9 @@ export async function POST(request) {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!B${nextRow}:G${nextRow}`,
+      range: `${SHEET_NAME}!A${nextRow}:G${nextRow}`,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [[what, serial, amount || "", unit || "n/a", amountL || "", amountR || ""]] },
+      requestBody: { values: [[child_id || "ellie_001", what, serial, amount || "", unit || "n/a", amountL || "", amountR || ""]] },
     });
 
     await sheets.spreadsheets.batchUpdate({
