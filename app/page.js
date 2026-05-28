@@ -505,14 +505,15 @@ export default function App() {
 
   useEffect(() => {
     const restored = {};
-    Object.keys(localStorage).filter(k => k.startsWith('timer_')).forEach(savedKey => {
+    Object.keys(localStorage).filter(k => k.startsWith('timer_') && !k.startsWith('timer_child_')).forEach(savedKey => {
       const cat = savedKey.replace('timer_', '');
       const start = parseInt(localStorage.getItem(savedKey));
+      const child_id = localStorage.getItem('timer_child_' + cat) || null;
       const elapsed = Math.floor((Date.now() - start) / 1000);
       const interval = setInterval(() => {
         setTimers(t => ({ ...t, [cat]: { ...t[cat], elapsed: Math.floor((Date.now() - start) / 1000) } }));
       }, 1000);
-      restored[cat] = { start, elapsed, running: true, interval };
+      restored[cat] = { start, elapsed, running: true, interval, child_id };
     });
     if (Object.keys(restored).length > 0) setTimers(restored);
   }, []);
@@ -535,7 +536,7 @@ export default function App() {
     }
   }, []);
 
-  const startTimer = (cat) => {
+  const startTimer = (cat, child_id) => {
     if (timers[cat]?.running) return;
     if (cat === 'Amning_L' && timers['Amning_R']?.running) {
       clearInterval(timers['Amning_R'].interval);
@@ -546,11 +547,13 @@ export default function App() {
       setTimers(t => ({ ...t, Amning_L: { ...t.Amning_L, running: false } }));
     }
     const start = Date.now() - (timers[cat]?.elapsed || 0) * 1000;
+    const timerChildId = timers[cat]?.child_id || child_id || selectedChild?.child_id;
     const interval = setInterval(() => {
       setTimers(t => ({ ...t, [cat]: { ...t[cat], elapsed: Math.floor((Date.now() - start) / 1000), running: true } }));
     }, 1000);
-    setTimers(t => ({ ...t, [cat]: { start, elapsed: timers[cat]?.elapsed || 0, running: true, interval } }));
+    setTimers(t => ({ ...t, [cat]: { start, elapsed: timers[cat]?.elapsed || 0, running: true, interval, child_id: timerChildId } }));
     localStorage.setItem('timer_' + cat, String(start));
+    localStorage.setItem('timer_child_' + cat, timerChildId || '');
   };
   
   const pauseTimer = (cat) => {
@@ -589,6 +592,7 @@ export default function App() {
     clearInterval(timers[cat]?.interval);
     setTimers(t => { const n = { ...t }; delete n[cat]; return n; });
     localStorage.removeItem('timer_' + cat);
+    localStorage.removeItem('timer_child_' + cat);
   };
   
   function formatTimer(secs) {
@@ -687,11 +691,13 @@ export default function App() {
       setTimers(t => { const n = { ...t }; delete n['Sömn']; return n; });
     }
   
+    const entryChildId = (form.what === 'Amning'
+      ? timers['Amning_L']?.child_id || timers['Amning_R']?.child_id
+      : timers[form.what]?.child_id) || selectedChild?.child_id || 'ellie_001';
     setSaving(true);
-    console.log('Submitting form:', submittedForm);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, child_id: selectedChild?.child_id || 'ellie_001' }),
+      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, child_id: entryChildId }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
     else showToast('Något gick fel');
@@ -707,7 +713,7 @@ export default function App() {
     setTimers(t => { const n = { ...t }; delete n['Sömn']; return n; });
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: 'Sömn', time: Date.now(), amount: String(mins), unit: 'min', amountL: null, amountR: null, child_id: selectedChild?.child_id || 'ellie_001' }),
+      body: JSON.stringify({ what: 'Sömn', time: Date.now(), amount: String(mins), unit: 'min', amountL: null, amountR: null, child_id: timers['Sömn']?.child_id || selectedChild?.child_id || 'ellie_001' }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); }
     else showToast('Något gick fel');
@@ -769,7 +775,7 @@ export default function App() {
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries.filter(e => e.child_id === selectedChild?.child_id)} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
-      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
+      {page === 'add' && <AddForm form={form} setForm={setForm} catNames={catNames} emojiMap={emojiMap} unitMap={unitMap} onCategoryChange={handleCategoryChange} onSubmit={submitEntry} saving={saving} formatTimer={formatTimer} timers={timers} onStartTimer={(key) => startTimer(key || form.what, selectedChild?.child_id)} onPauseTimer={(key) => pauseTimer(key || form.what)} onStopTimer={(key) => stopTimer(key || form.what)} onResetTimer={(key) => resetTimer(key || form.what)} timerElapsed={timers[form.what]?.elapsed || 0} timerRunning={timers[form.what]?.running || false} timerCat={form.what} />}
       {page === 'utveckling' && <Utveckling birthTs={birthTs} child={selectedChild} />}
       {page === 'settings' && <Settings categories={categories} setCategories={setCategories} emojiMap={emojiMap} session={session} onSignOut={() => signOut()} fetchChild={fetchChild} children={children} selectedChild={selectedChild} showAddChild={showAddChild} onAddChildClose={() => setShowAddChild(false)} />}
 
