@@ -9,7 +9,7 @@ export async function GET(request) {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `children!A2:G100`,
+      range: `children!A2:H100`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
 
@@ -42,6 +42,7 @@ export async function GET(request) {
         dueDate: parseBirthTs(r[4]),
         parentEmails: (r[5] || '').split(',').map(e => e.trim()),
         emoji: r[6] || '👶',
+        type: r[7] || 'barn',
       }));
 
     return Response.json(children);
@@ -55,7 +56,7 @@ export async function POST(request) {
     if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   
     try {
-      const { firstName, lastName, birthTs, dueDate } = await request.json();
+      const { firstName, lastName, birthTs, dueDate, emoji, type } = await request.json();
       const sheets = await getSheet();
   
       const child_id = `${firstName.toLowerCase()}_${Date.now()}`;
@@ -69,9 +70,9 @@ export async function POST(request) {
   
       await sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
-        range: `children!A:F`,
+        range: `children!A:H`,
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: [[child_id, firstName, lastName, formatTs(birthTs), formatTs(dueDate), email]] },
+        requestBody: { values: [[child_id, firstName, lastName, formatTs(birthTs), formatTs(dueDate), email, emoji || '👶', type || 'barn']] },
       });
   
       return Response.json({ success: true, child_id });

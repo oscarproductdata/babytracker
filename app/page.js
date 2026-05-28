@@ -744,7 +744,7 @@ export default function App() {
           WebkitTapHighlightColor: 'transparent', marginLeft: 8, whiteSpace: 'nowrap',
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={THEME.textFaint} strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          <span style={{ fontSize: 13, fontWeight: 400, color: THEME.textFaint }}>Lägg till barn</span>
+          <span style={{ fontSize: 13, fontWeight: 400, color: THEME.textFaint }}>Lägg till familj</span>
         </button>
       </div>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={c => { setSelectedChild(c); setBirthTs(c.birthTs); }} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
@@ -1623,12 +1623,20 @@ function AddChildForm({ onAdded, autoOpen, onAutoOpenConsumed }) {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [type, setType] = useState('barn');
+  const [emoji, setEmoji] = useState('👶');
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (autoOpen) { setShowForm(true); onAutoOpenConsumed?.(); }
   }, [autoOpen]);
+
+  // Auto-set default emoji based on type
+  useEffect(() => {
+    if (type === 'barn') setEmoji('👶');
+    if (type === 'hund') setEmoji('🐶');
+  }, [type]);
 
   const save = async () => {
     if (!firstName.trim() || !birthDate) return;
@@ -1641,10 +1649,13 @@ function AddChildForm({ onAdded, autoOpen, onAutoOpenConsumed }) {
         lastName: lastName.trim(),
         birthTs: new Date(birthDate).getTime(),
         dueDate: dueDate ? new Date(dueDate).getTime() : null,
+        emoji,
+        type,
       }),
     });
     if (res.ok) {
       setFirstName(''); setLastName(''); setBirthDate(''); setDueDate('');
+      setType('barn'); setEmoji('👶');
       setShowForm(false);
       onAdded();
     }
@@ -1653,17 +1664,32 @@ function AddChildForm({ onAdded, autoOpen, onAutoOpenConsumed }) {
 
   if (!showForm) return (
     <button style={{ ...S.submitBtn, background: THEME.border, color: THEME.text, marginBottom: 8 }} onClick={() => setShowForm(true)}>
-      + Lägg till barn
+      + Lägg till familjemedlem
     </button>
   );
 
   return (
     <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginBottom: 8 }}>
+      <FormRow label="Typ">
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          {[{ value: 'barn', label: '👶 Barn' }, { value: 'hund', label: '🐶 Hund' }].map(t => (
+            <button key={t.value} onClick={() => setType(t.value)} style={{
+              padding: '6px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+              border: '1px solid ' + (type === t.value ? THEME.text : THEME.border),
+              background: type === t.value ? THEME.text : 'none',
+              color: type === t.value ? THEME.bg : THEME.text,
+            }}>{t.label}</button>
+          ))}
+        </div>
+      </FormRow>
       <FormRow label="Förnamn">
         <input style={{ ...S.input, color: THEME.text }} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Förnamn" />
       </FormRow>
       <FormRow label="Efternamn">
         <input style={{ ...S.input, color: THEME.text }} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Efternamn" />
+      </FormRow>
+      <FormRow label="Emoji">
+        <input style={{ ...S.input, color: THEME.text }} value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="👶" />
       </FormRow>
       <FormRow label="Födelsedag">
         <input type="date" style={{ ...S.input, color: THEME.text }} value={birthDate} onChange={e => setBirthDate(e.target.value)} />
@@ -1673,7 +1699,7 @@ function AddChildForm({ onAdded, autoOpen, onAutoOpenConsumed }) {
       </FormRow>
       <div style={{ display: 'flex', gap: 10, padding: '12px 16px' }}>
         <button style={{ ...S.modalBtn, color: THEME.textMuted }} onClick={() => setShowForm(false)}>Avbryt</button>
-        <button style={{ ...S.modalBtn, background: THEME.accent, color: 'white', borderColor: THEME.accent, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+        <button style={{ ...S.modalBtn, background: THEME.text, color: THEME.bg, borderColor: THEME.text, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
           {saving ? 'Sparar...' : 'Spara'}
         </button>
       </div>
@@ -1780,7 +1806,7 @@ function Settings({ categories, setCategories, emojiMap, session, onSignOut, fet
         <p style={{ ...S.sub, color: THEME.textMuted }}>{session.user.email}</p>
       </div>
       <div style={{ padding: '0 16px' }}>
-        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Lägg till barn</div>
+        <div style={{ ...S.sectionTitle, color: THEME.textFaint }}>Lägg till familjemedlem</div>
         <AddChildForm onAdded={() => { fetchChild(); }} autoOpen={showAddChild} onAutoOpenConsumed={onAddChildClose} />
         <div style={{ ...S.sectionTitle, color: THEME.textFaint, marginTop: 24 }}>Åtkomst</div>
         <ChildAccessList children={children} />
