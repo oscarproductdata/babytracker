@@ -680,6 +680,12 @@ export default function App() {
       });
       setTimers(t => { const n = { ...t }; delete n['Amning_L']; delete n['Amning_R']; return n; });
     }
+    if (form.what === 'Sömn') {
+      const elapsed = timers['Sömn']?.elapsed || 0;
+      if (elapsed > 0) submittedForm.amount = String(Math.ceil(elapsed / 60));
+      if (timers['Sömn']) { clearInterval(timers['Sömn'].interval); localStorage.removeItem('timer_Sömn'); }
+      setTimers(t => { const n = { ...t }; delete n['Sömn']; return n; });
+    }
   
     setSaving(true);
     console.log('Submitting form:', submittedForm);
@@ -1317,31 +1323,37 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     </FormRow>
   </div>
 ) : null}
-{form.what === 'Sömn' && showTimer && (
+{form.what === 'Sömn' && (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12, textAlign: 'center' }}>
-    <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
-      {formatTimer(timerElapsed)}
+    <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 8 }}>Sömnlängd</div>
+    <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '0px', color: timers['Sömn']?.running ? THEME.timer : THEME.text, fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
+      {formatTimer(timers['Sömn']?.elapsed || 0)}
     </div>
+    {timers['Sömn']?.elapsed > 0 && (
+      <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 12 }}>
+        {Math.ceil((timers['Sömn']?.elapsed || 0) / 60)} min
+      </div>
+    )}
     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-      {!timerRunning && timerElapsed === 0 && (
-        <button onClick={onStartTimer} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #16AF5D, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+      {!timers['Sömn']?.running && !timers['Sömn']?.elapsed && (
+        <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #16AF5D, #0ea5e9)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
           ▶ Starta
         </button>
       )}
-      {timerRunning && (
-        <button onClick={onPauseTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+      {timers['Sömn']?.running && (
+        <button onClick={() => onPauseTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
           ⏸ Pausa
         </button>
       )}
-      {!timerRunning && timerElapsed > 0 && (
+      {!timers['Sömn']?.running && timers['Sömn']?.elapsed > 0 && (
         <>
-          <button onClick={onStartTimer} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => onStartTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timer, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
             ▶ Fortsätt
           </button>
-          <button onClick={onStopTimer} style={{ flex: 1, padding: '12px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => onStopTimer('Sömn')} style={{ flex: 1, padding: '12px', background: THEME.timerStop, color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
             ⏹ Avsluta
           </button>
-          <button onClick={onResetTimer} style={{ padding: '12px 14px', background: 'none', color: THEME.textMuted, border: '1px solid ' + THEME.border, borderRadius: 10, fontSize: 15, cursor: 'pointer' }}>
+          <button onClick={() => onResetTimer('Sömn')} style={{ padding: '12px 14px', background: 'none', color: THEME.textMuted, border: '1px solid ' + THEME.border, borderRadius: 10, fontSize: 15, cursor: 'pointer' }}>
             ↺
           </button>
         </>
