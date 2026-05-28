@@ -707,7 +707,12 @@ export default function App() {
       submittedForm.what = 'Amning';
       const tsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
       const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
-      submittedForm.lastSide = tsL > 0 || tsR > 0 ? (tsL > tsR ? 'L' : 'R') : (lElapsed > rElapsed ? 'L' : rElapsed > lElapsed ? 'R' : null);
+      const runningL = timers['Amning_L']?.running;
+      const runningR = timers['Amning_R']?.running;
+      submittedForm.lastSide = tsL > 0 || tsR > 0
+        ? (tsL > tsR ? 'L' : 'R')
+        : runningL ? 'L' : runningR ? 'R'
+        : (lElapsed > 0 && rElapsed === 0 ? 'L' : rElapsed > 0 && lElapsed === 0 ? 'R' : lElapsed >= rElapsed ? 'L' : 'R');
       ['Amning_L', 'Amning_R'].forEach(key => {
         if (timers[key]) { clearInterval(timers[key].interval); localStorage.removeItem('timer_' + key); }
       });
