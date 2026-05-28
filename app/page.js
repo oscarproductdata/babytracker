@@ -641,7 +641,7 @@ export default function App() {
 
   useEffect(() => { if (session) { fetchEntries(); fetchCategories(); fetchChild(); } }, [session, fetchEntries, fetchCategories, fetchChild]);
   useEffect(() => { 
-    if (page === 'add' && !form.what && !timerRunning) setForm(f => ({ ...f, what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min' }));
+    if (page === 'add' && !form.what && !timerRunning) setForm(f => ({ ...f, what: 'Amning', time: nowStockholm(), amount: '', unit: unitMap['Amning'] || 'min', child_id: selectedChild?.child_id || f.child_id }));
   }, [page]);
 
   if (status === 'loading') return <Loading />;
@@ -702,7 +702,7 @@ export default function App() {
     setSaving(true);
     const res = await fetch('/api/entries/' + editEntry.id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit }),
+      body: JSON.stringify({ what: editEntry.what, time: editEntry.time, amount: editEntry.amount, unit: editEntry.unit, child_id: editEntry.child_id || selectedChild?.child_id }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setEditEntry(null); }
     else showToast('Något gick fel');
@@ -749,7 +749,7 @@ export default function App() {
       </div>
       {page === 'dashboard' && <Dashboard entries={entries} loading={loading} categories={categories} emojiMap={emojiMap} chartJsLoaded={chartJsLoaded} birthTs={birthTs} child={selectedChild} children={children} selectedChild={selectedChild} onChildSelect={c => { setSelectedChild(c); setBirthTs(c.birthTs); }} darkMode={darkMode} onDarkModeToggle={() => setDarkMode(d => !d)} onCategoryClick={(cat) => {
         const unit = unitMap[cat] || 'n/a';
-        setForm({ what: cat, time: nowStockholm(), amount: '', unit });
+        setForm(f => ({ ...f, what: cat, time: nowStockholm(), amount: '', unit }));
         setPage('add');
       }} />}
       {page === 'log' && <Log entries={entries.filter(e => e.child_id === selectedChild?.child_id)} onEdit={setEditEntry} emojiMap={emojiMap} categories={categories} />}
