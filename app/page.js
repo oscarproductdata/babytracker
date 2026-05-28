@@ -733,7 +733,7 @@ export default function App() {
                 fontSize: 13, fontWeight: isActive ? 600 : 400,
                 cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                 transition: 'all 0.15s', whiteSpace: 'nowrap'
-              }}>👶 {c.firstName}</button>
+              }}>{c.emoji || '👶'} {c.firstName}</button>
             );
           })}
         </div>
@@ -1691,12 +1691,14 @@ function AddChildForm({ onAdded, autoOpen, onAutoOpenConsumed }) {
       <FormRow label="Emoji">
         <input style={{ ...S.input, color: THEME.text }} value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="👶" />
       </FormRow>
-      <FormRow label="Födelsedag">
+      <FormRow label="Födelsedag" last={type === 'hund'}>
         <input type="date" style={{ ...S.input, color: THEME.text }} value={birthDate} onChange={e => setBirthDate(e.target.value)} />
       </FormRow>
-      <FormRow label="Beräknat datum" last>
-        <input type="date" style={{ ...S.input, color: THEME.text }} value={dueDate} onChange={e => setDueDate(e.target.value)} />
-      </FormRow>
+      {type === 'barn' && (
+        <FormRow label="Beräknat datum" last={type === 'barn'}>
+          <input type="date" style={{ ...S.input, color: THEME.text }} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </FormRow>
+      )}
       <div style={{ display: 'flex', gap: 10, padding: '12px 16px' }}>
         <button style={{ ...S.modalBtn, color: THEME.textMuted }} onClick={() => setShowForm(false)}>Avbryt</button>
         <button style={{ ...S.modalBtn, background: THEME.text, color: THEME.bg, borderColor: THEME.text, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
