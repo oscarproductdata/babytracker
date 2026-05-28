@@ -1384,11 +1384,10 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
     const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
     const lMins = parseFloat(last.amountL || 0);
     const rMins = parseFloat(last.amountR || 0);
-    // Try lastSide from sheet first, then localStorage, then fallback to amounts
-    const tsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
-    const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
+    const kpiTsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
+    const kpiTsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
     const lastSide = last.lastSide
-      || (tsL > 0 || tsR > 0 ? (tsL > tsR ? 'L' : 'R') : null)
+      || (kpiTsL > 0 || kpiTsR > 0 ? (kpiTsL > kpiTsR ? 'L' : 'R') : null)
       || (lMins > 0 && rMins === 0 ? 'L' : rMins > 0 && lMins === 0 ? 'R' : null);
     const nextSide = lastSide === 'L' ? 'R' : lastSide === 'R' ? 'L' : null;
     if (!lastSide) return null;
