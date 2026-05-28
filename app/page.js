@@ -704,6 +704,10 @@ export default function App() {
       const rElapsed = timers['Amning_R']?.elapsed || 0;
       if (lElapsed > 0) submittedForm.amountL = String(Math.ceil(lElapsed / 60));
       if (rElapsed > 0) submittedForm.amountR = String(Math.ceil(rElapsed / 60));
+      submittedForm.what = 'Amning';
+      const tsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
+      const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
+      submittedForm.lastSide = tsL > 0 || tsR > 0 ? (tsL > tsR ? 'L' : 'R') : (lElapsed > rElapsed ? 'L' : rElapsed > lElapsed ? 'R' : null);
       ['Amning_L', 'Amning_R'].forEach(key => {
         if (timers[key]) { clearInterval(timers[key].interval); localStorage.removeItem('timer_' + key); }
       });
