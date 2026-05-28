@@ -560,6 +560,8 @@ export default function App() {
   const pauseTimer = (cat) => {
     clearInterval(timers[cat]?.interval);
     setTimers(t => ({ ...t, [cat]: { ...t[cat], running: false } }));
+    const side = cat.endsWith('_L') ? 'L' : cat.endsWith('_R') ? 'R' : null;
+    if (side) { localStorage.setItem('last_amning_side', side); localStorage.setItem('last_amning_side_ts_' + side, String(Date.now())); }
   };
   
   const stopTimer = (cat) => {
@@ -568,6 +570,7 @@ export default function App() {
     const mins = Math.ceil(elapsed / 60);
     const baseCat = cat.replace('_L', '').replace('_R', '');
     const side = cat.endsWith('_L') ? 'L' : cat.endsWith('_R') ? 'R' : null;
+    if (side) { localStorage.setItem('last_amning_side', side); localStorage.setItem('last_amning_side_ts_' + side, String(Date.now())); }
     const note = side ? `Sida: ${side}` : '';
     setForm(f => ({
         ...f,
@@ -1362,21 +1365,19 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
             </FormRow>
           )}
           </div>
-          {isAmning && (() => {
-            const lastAmning = (timers['Amning_L'] || timers['Amning_R']) ? null :
-              [...(window.__entries || [])].filter(e => e.what === 'Amning').sort((a,b) => b.time - a.time)[0];
-            const lastSide = lastAmning ? (parseFloat(lastAmning.amountR || 0) > parseFloat(lastAmning.amountL || 0) ? 'R' : parseFloat(lastAmning.amountL || 0) > 0 ? 'L' : null) : null;
-            return null;
-          })()}
           {isAmning && (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12 }}>
   {(() => {
     const amningEntries = (entries || []).filter(e => e.what === 'Amning' && (!selectedChild || e.child_id === selectedChild.child_id)).sort((a,b) => b.time - a.time);
     const last = amningEntries[0];
     if (!last) return null;
+    const tsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
+    const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
     const lMins = parseFloat(last.amountL || 0);
     const rMins = parseFloat(last.amountR || 0);
-    const lastSide = lMins > rMins ? 'L' : rMins > lMins ? 'R' : lMins > 0 ? 'L' : null;
+    const lastSide = tsL === 0 && tsR === 0
+      ? (lMins > 0 && rMins === 0 ? 'L' : rMins > 0 && lMins === 0 ? 'R' : null)
+      : tsL > tsR ? 'L' : 'R';
     const nextSide = lastSide === 'L' ? 'R' : lastSide === 'R' ? 'L' : null;
     if (!lastSide) return null;
     return (

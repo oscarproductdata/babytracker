@@ -39,7 +39,7 @@ export async function GET(request) {
     const sheets = await getSheet();
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A2:G1000`,
+      range: `${SHEET_NAME}!A2:H1000`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
 
@@ -57,6 +57,7 @@ export async function GET(request) {
         unit: r[4] || "n/a",
         amountL: r[5] || null,
         amountR: r[6] || null,
+        lastSide: r[7] || null,
       }))
       .filter(e => e.what && e.time && !isNaN(e.time))
       .sort((a, b) => b.time - a.time);
@@ -74,7 +75,7 @@ export async function POST(request) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { what, time, amount, unit, amountL, amountR, child_id } = await request.json();
+    const { what, time, amount, unit, amountL, amountR, child_id, lastSide } = await request.json();
     const sheets = await getSheet();
     const serial = toStockholmSerial(time);
 
@@ -89,9 +90,9 @@ export async function POST(request) {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A${nextRow}:G${nextRow}`,
+      range: `${SHEET_NAME}!A${nextRow}:H${nextRow}`,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [[child_id || "ellie_001", what, serial, amount || "", unit || "n/a", amountL || "", amountR || ""]] },
+      requestBody: { values: [[child_id || "ellie_001", what, serial, amount || "", unit || "n/a", amountL || "", amountR || "", lastSide || ""]] },
     });
 
     await sheets.spreadsheets.batchUpdate({
