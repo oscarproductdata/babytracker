@@ -119,6 +119,7 @@ function TrendChart({ entries, categories, emojiMap, darkMode }) {
       const days = 7;
       const labels = [];
       const data = [];
+      const counts = [];
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -126,19 +127,28 @@ function TrendChart({ entries, categories, emojiMap, darkMode }) {
         const start = new Date(d.toLocaleDateString('sv-SE', { timeZone: TIMEZONE })).getTime();
         const end = start + 86400000;
         const dayEntries = entries.filter(e => e.what === activeCat && e.time >= start && e.time < end);
-        const total = dayEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-        data.push(total || dayEntries.length);
+        const total = dayEntries.reduce((s, e) => {
+          if (e.amountL || e.amountR) return s + (parseFloat(e.amountL) || 0) + (parseFloat(e.amountR) || 0);
+          return s + (parseFloat(e.amount) || 0);
+        }, 0);
+        data.push(total);
+        counts.push(dayEntries.length);
       }
       const cat = getCat(activeCat);
+      const hasAmounts = data.some(v => v > 0);
       chartRef.current = new window.Chart(canvasRef.current, {
         type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: cat.chart, borderColor: cat.base, borderWidth: 1.5, borderRadius: 6 }] },
+        data: { labels, datasets: [
+          ...(hasAmounts ? [{ label: 'Minuter', data, backgroundColor: cat.chart, borderColor: cat.base, borderWidth: 1.5, borderRadius: 6, yAxisID: 'y' }] : []),
+          { label: 'Antal', data: counts, type: 'line', borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: 'rgba(255,255,255,0.7)', tension: 0.3, fill: false, yAxisID: hasAmounts ? 'y2' : 'y' },
+        ]},
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: { legend: { display: true, labels: { color: resolvedTick, font: { size: 11 }, boxWidth: 12 } } },
           scales: {
             x: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid } },
-            y: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid }, beginAtZero: true }
+            y: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { color: resolvedGrid }, beginAtZero: true, position: 'left' },
+            ...(hasAmounts ? { y2: { ticks: { color: resolvedTick, font: { size: 11 } }, grid: { display: false }, beginAtZero: true, position: 'right' } } : {}),
           }
         }
       });
@@ -417,7 +427,7 @@ export default function App() {
   const submitEntry = async () => {
     if (!form.what || !form.time) { showToast('Välj kategori och tid'); return; }
     
-    let submittedForm = { ...form };
+    let submittedForm = { ...form, time: nowStockholm() };
   
     if (form.what === 'Amning') {
       const lElapsed = timers['Amning_L']?.elapsed || 0;
