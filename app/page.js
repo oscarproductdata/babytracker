@@ -883,11 +883,8 @@ export default function App() {
                 {/* Header row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
-                      <div className="breathe-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer, opacity: 0.3 }} />
-                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: THEME.timer }} />
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: THEME.text }}>🤱 Amning</span>
+                    <span style={{ fontSize: 22, animation: (timers['Amning_L']?.running || timers['Amning_R']?.running) ? 'amningSway 2s ease-in-out infinite' : 'none' }}>🤱</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: THEME.text }}>Amning {timers['Amning_L']?.child_id || timers['Amning_R']?.child_id ? `(${children.find(c => c.child_id === (timers['Amning_L']?.child_id || timers['Amning_R']?.child_id))?.firstName || ''})` : ''}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Amning-timers?')) { resetTimer('Amning_L'); resetTimer('Amning_R'); } }} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: THEME.danger, fontWeight: 500 }}>Avbryt</button>
@@ -922,6 +919,12 @@ export default function App() {
                     borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'white',
                     WebkitTapHighlightColor: 'transparent',
                   }}>💾 Spara amning</button>
+                  <style>{`
+                    @keyframes amningSway {
+                      0%, 100% { transform: rotate(-8deg); }
+                      50% { transform: rotate(8deg); }
+                    }
+                  `}</style>
                 </div>
               );
             }
@@ -942,7 +945,7 @@ export default function App() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 22, animation: timers[cat]?.running ? 'sleepFloat 4s ease-in-out infinite' : 'none' }}>😴</span>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(180,200,255,0.9)' }}>Sömn pågår</span>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(180,200,255,0.9)' }}>Sömn pågår {timers[cat]?.child_id ? `(${children.find(c => c.child_id === timers[cat]?.child_id)?.firstName || ''})` : ''}</span>
                       </div>
                       <button onClick={e => { e.stopPropagation(); if (confirm('Avbryta Sömn-timer?')) resetTimer(cat); }} style={{
                         background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 20,
