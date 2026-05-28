@@ -1374,36 +1374,29 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
             </FormRow>
           )}
           </div>
-          {isAmning && (
+          {isAmning && (() => {
+            const _amningEntries = (entries || []).filter(e => e.what === 'Amning' && (!selectedChild || e.child_id === selectedChild.child_id)).sort((a,b) => b.time - a.time);
+            const _last = _amningEntries[0];
+            const _lMins = parseFloat(_last?.amountL || 0);
+            const _rMins = parseFloat(_last?.amountR || 0);
+            const _kpiTsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
+            const _kpiTsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
+            const _lastSide = _last?.lastSide || (_kpiTsL > 0 || _kpiTsR > 0 ? (_kpiTsL > _kpiTsR ? 'L' : 'R') : null) || (_lMins > 0 && _rMins === 0 ? 'L' : _rMins > 0 && _lMins === 0 ? 'R' : null);
+            const nextSide = _lastSide === 'L' ? 'R' : _lastSide === 'R' ? 'L' : null;
+            return (
   <div style={{ background: THEME.bg2, border: '1px solid ' + THEME.border, borderRadius: 14, padding: '20px 16px', marginTop: 12 }}>
-  {(() => {
-    const amningEntries = (entries || []).filter(e => e.what === 'Amning' && (!selectedChild || e.child_id === selectedChild.child_id)).sort((a,b) => b.time - a.time);
-    const last = amningEntries[0];
-    if (!last) return null;
-    const tsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
-    const tsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
-    const lMins = parseFloat(last.amountL || 0);
-    const rMins = parseFloat(last.amountR || 0);
-    const kpiTsL = parseInt(localStorage.getItem('last_amning_side_ts_L') || '0');
-    const kpiTsR = parseInt(localStorage.getItem('last_amning_side_ts_R') || '0');
-    const lastSide = last.lastSide
-      || (kpiTsL > 0 || kpiTsR > 0 ? (kpiTsL > kpiTsR ? 'L' : 'R') : null)
-      || (lMins > 0 && rMins === 0 ? 'L' : rMins > 0 && lMins === 0 ? 'R' : null);
-    const nextSide = lastSide === 'L' ? 'R' : lastSide === 'R' ? 'L' : null;
-    if (!lastSide) return null;
-    return (
-      <div style={{ marginBottom: 16, padding: '10px 12px', background: 'rgba(231,0,93,0.08)', borderRadius: 10, border: '1px solid rgba(231,0,93,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 12, color: THEME.textMuted }}>
-          Senast: <strong style={{ color: THEME.text }}>{lastSide === 'L' ? '⬅ Vänster' : 'Höger ➡'}</strong>
-        </div>
-        {nextSide && (
-          <div style={{ fontSize: 11, color: '#E7005D', fontWeight: 600, opacity: 0.8 }}>
-            Börja med {nextSide === 'L' ? 'vänster' : 'höger'} →
-          </div>
-        )}
+  {_lastSide && (
+    <div style={{ marginBottom: 16, padding: '10px 12px', background: 'rgba(231,0,93,0.08)', borderRadius: 10, border: '1px solid rgba(231,0,93,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontSize: 12, color: THEME.textMuted }}>
+        Senast: <strong style={{ color: THEME.text }}>{_lastSide === 'L' ? '⬅ Vänster' : 'Höger ➡'}</strong>
       </div>
-    );
-  })()}
+      {nextSide && (
+        <div style={{ fontSize: 11, color: '#E7005D', fontWeight: 600, opacity: 0.8 }}>
+          Börja med {nextSide === 'L' ? 'vänster' : 'höger'} →
+        </div>
+      )}
+    </div>
+  )}
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
       {['L', 'R'].map(side => {
         const key = `Amning_${side}`;
@@ -1463,8 +1456,9 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
         );
       })}
     </div>
-  </div>
-)}
+    </div>
+            );
+          })()}
 {isAmning && !timers['Amning_L'] && !timers['Amning_R'] ? (
   <div style={{ ...S.formCard, background: THEME.bg2, border: '1px solid ' + THEME.border, marginTop: 8 }}>
     <FormRow label="Mängd L">
