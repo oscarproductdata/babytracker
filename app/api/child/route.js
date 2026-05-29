@@ -19,15 +19,27 @@ export async function GET(request) {
     console.log('First row:', JSON.stringify(rows[0]));
 
     const parseBirthTs = (val) => {
-      if (!val) return null;
-      if (typeof val === 'number') return (val - 25569) * 86400 * 1000;
-      const match = String(val).match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2})\.(\d{2})/);
-      if (match) {
-        const [_, y, m, d, h, min] = match;
-        return new Date(`${y}-${m}-${d}T${h}:${min}:00`).getTime();
-      }
-      return null;
-    };
+        if (!val) return null;
+        if (typeof val === 'number') {
+          // Google serial → UTC ms, then adjust for Stockholm offset
+          const utcMs = (val - 25569) * 86400 * 1000;
+          const roundedMs = Math.round(utcMs / 60000) * 60000;
+          const offsetHours = new Date(roundedMs).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', timeZoneName: 'short' }).match(/GMT([+-]\d+)/)?.[1];
+          const offset = offsetHours ? parseInt(offsetHours) : 2;
+          return roundedMs - (offset * 3600 * 1000);
+        }
+        const match = String(val).match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2})[\.:](\d{2})/);
+        if (match) {
+          const [_, y, m, d, h, min] = match;
+          // Parse as Stockholm local time
+          const isoStr = `${y}-${m}-${d}T${h}:${min}:00`;
+          const utcDate = new Date(isoStr + 'Z');
+          const localDate = new Date(new Date(isoStr).toLocaleString('en-US', { timeZone: 'Europe/Stockholm' }));
+          const offset = new Date(isoStr).getTime() - localDate.getTime();
+          return utcDate.getTime() + offset;
+        }
+        return null;
+      };
 
     const children = rows
       .filter(r => {
