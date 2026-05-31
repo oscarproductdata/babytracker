@@ -20,7 +20,7 @@ const THEME = {
   chartGrid:   'var(--border)',
   chartTick:   'var(--text-faint)',
   categories: {
-    'Ersättning': { base: '#009855', chart: 'rgba(0,152,85,0.25)',   card: '#e8f4ee', text: '#1b4332' },
+    'Flaska':     { base: '#009855', chart: 'rgba(0,152,85,0.25)',   card: '#e8f4ee', text: '#1b4332' },
     'Amning':     { base: '#E7005D', chart: 'rgba(231,0,93,0.25)',   card: '#fdf2f8', text: '#6b0f35' },
     'Vikt':       { base: '#0C79DE', chart: 'rgba(12,121,222,0.25)', card: '#E6F3FF', text: '#0068C8' },
     'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',   card: '#fef3c7', text: '#78350f' },
@@ -73,7 +73,7 @@ const DEFAULT_CATEGORIES = [
   { name: 'Vikt', emoji: '⚖️', unit: 'gram' },
   { name: 'Bajs', emoji: '💩', unit: 'n/a' },
   { name: 'Kiss', emoji: '💧', unit: 'n/a' },
-  { name: 'Ersättning', emoji: '🍼', unit: 'ml' },
+  { name: 'Flaska', emoji: '🍼', unit: 'ml' },
 ];
 
 function timeSince(ts) {
@@ -697,9 +697,14 @@ export default function App() {
   const submitEntry = async () => {
     if (!form.what || !form.time) { showToast('Välj kategori och tid'); return; }
     
-    let submittedForm = { ...form, time: nowStockholm() };
+    const hasRunningTimer = 
+      timers['Amning_L']?.elapsed > 0 || 
+      timers['Amning_R']?.elapsed > 0 ||
+      timers['Sömn']?.elapsed > 0 ||
+      timers['Promenad']?.elapsed > 0;
+    let submittedForm = { ...form, time: hasRunningTimer ? nowStockholm() : form.time };
   
-    if (form.what === 'Amning' || activeTimerCats.includes('Amning_L') || activeTimerCats.includes('Amning_R')) {
+    if (form.what === 'Amning') {
       const lElapsed = timers['Amning_L']?.elapsed || 0;
       const rElapsed = timers['Amning_R']?.elapsed || 0;
       if (lElapsed > 0) submittedForm.amountL = String(Math.ceil(lElapsed / 60));
@@ -737,7 +742,7 @@ export default function App() {
     setSaving(true);
     const res = await fetch('/api/entries', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: (() => { const payload = { what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, lastSide: submittedForm.lastSide || null, child_id: entryChildId }; console.log('Submitting entry payload:', JSON.stringify(payload)); return JSON.stringify(payload); })(),
+      body: JSON.stringify({ what: submittedForm.what, time: new Date(submittedForm.time).getTime(), amount: submittedForm.amount, unit: submittedForm.unit, amountL: submittedForm.amountL || null, amountR: submittedForm.amountR || null, lastSide: submittedForm.lastSide || null, typ: submittedForm.typ || null, child_id: entryChildId }),
     });
     if (res.ok) { showToast('Sparad ✓'); await fetchEntries(); setPage('dashboard'); }
     else showToast('Något gick fel');
@@ -1076,7 +1081,7 @@ const Dashboard = memo(function Dashboard({ entries, loading, categories, emojiM
   const childEntries = useMemo(() => entries.filter(e => !e.child_id || e.child_id === child?.child_id), [entries, child?.child_id]);
   const weightEntries = childEntries.filter(e => e.what === 'Vikt').sort((a,b) => b.time - a.time);
   const lengthEntries = childEntries.filter(e => e.what === 'Längd').sort((a,b) => b.time - a.time);
-  const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd' && c.name !== 'Ersättning');
+  const trackCats = categories.filter(c => c.name !== 'Vikt' && c.name !== 'Längd');
 
   function ageString(birthTs) {
     if (!birthTs) return null;
@@ -1203,6 +1208,20 @@ const Dashboard = memo(function Dashboard({ entries, loading, categories, emojiM
                   <span>{last24.length > 0 ? `24h: ${last24.length} st` : 'Inget 24h'}</span>
                   {total24 > 0 && <span>{total24} {last?.unit}</span>}
                 </div>
+                {name === 'Flaska' && last24.length > 0 && (() => {
+                  const types = {};
+                  last24.forEach(e => { const t = e.typ || 'ersättning'; types[t] = (types[t] || 0) + (parseFloat(e.amount) || 0); });
+                  return (
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {Object.entries(types).map(([typ, ml]) => (
+                        <div key={typ} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{typ}</span>
+                          <span>{ml} ml</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -1294,7 +1313,7 @@ function Log({ entries, onEdit, emojiMap, categories, selectedChild }) {
                   <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>
                     {e.amountL || e.amountR 
                       ? `L: ${e.amountL || 0} min  R: ${e.amountR || 0} min`
-                      : e.amount ? e.amount + ' ' + e.unit : '—'}
+                      : e.amount ? `${e.amount} ${e.unit}${e.typ ? ' · ' + e.typ : ''}` : '—'}
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: THEME.textFaint }}>{formatTime(e.time)}</div>
@@ -1372,6 +1391,14 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
           <FormRow label="Tid" last={form.what === 'Amning'}>
             <input type="datetime-local" style={{ ...S.input, color: THEME.text, flex: 'none', marginLeft: 'auto' }} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
           </FormRow>
+          {form.what === 'Flaska' && (
+            <FormRow label="Typ">
+              <select style={{ ...S.input, color: THEME.text, direction: 'rtl', textAlignLast: 'right' }} value={form.typ || 'ersättning'} onChange={e => setForm(f => ({ ...f, typ: e.target.value }))}>
+                <option value="ersättning">Ersättning</option>
+                <option value="bröstmjölk">Bröstmjölk</option>
+              </select>
+            </FormRow>
+          )}
           {form.what !== 'Amning' && (
             <FormRow label="Mängd">
               <input type="number" style={{ ...S.input, color: THEME.text }} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" inputMode="decimal" />
