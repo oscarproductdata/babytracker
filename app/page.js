@@ -26,6 +26,7 @@ const THEME = {
     'Bajs':       { base: '#713F12', chart: 'rgba(116,50,0,0.25)',   card: '#fef3c7', text: '#78350f' },
     'Kiss':       { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
     'Promenad':   { base: '#F4A600', chart: 'rgba(244,166,0,0.25)',  card: '#fefce8', text: '#713f12' },
+    'Reflux':     { base: '#8B5CF6', chart: 'rgba(139,92,246,0.25)', card: '#f5f3ff', text: '#5b21b6' },
   },
   categoryDefault: { base: '#6b6860', chart: 'rgba(107,104,96,0.25)', card: '#f1efe8', text: '#44403c' },
 };
@@ -74,6 +75,7 @@ const DEFAULT_CATEGORIES = [
   { name: 'Bajs', emoji: '💩', unit: 'n/a' },
   { name: 'Kiss', emoji: '💧', unit: 'n/a' },
   { name: 'Flaska', emoji: '🍼', unit: 'ml' },
+  { name: 'Reflux', emoji: '🤮', unit: 'n/a' },
 ];
 
 function timeSince(ts) {
@@ -1396,6 +1398,15 @@ function AddForm({ form, setForm, catNames, emojiMap, unitMap, onCategoryChange,
               <select style={{ ...S.input, color: THEME.text, direction: 'rtl', textAlignLast: 'right' }} value={form.typ || 'ersättning'} onChange={e => setForm(f => ({ ...f, typ: e.target.value }))}>
                 <option value="ersättning">Ersättning</option>
                 <option value="bröstmjölk">Bröstmjölk</option>
+              </select>
+            </FormRow>
+          )}
+          {form.what === 'Reflux' && (
+            <FormRow label="Storlek" last>
+              <select style={{ ...S.input, color: THEME.text, direction: 'rtl', textAlignLast: 'right' }} value={form.typ || 'liten'} onChange={e => setForm(f => ({ ...f, typ: e.target.value }))}>
+                <option value="liten">Liten</option>
+                <option value="medium">Medium</option>
+                <option value="stor">Stor</option>
               </select>
             </FormRow>
           )}
