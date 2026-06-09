@@ -1224,6 +1224,20 @@ const Dashboard = memo(function Dashboard({ entries, loading, categories, emojiM
                     </div>
                   );
                 })()}
+                {name === 'Reflux' && last24.length > 0 && (() => {
+                  const sizes = {};
+                  last24.forEach(e => { const t = e.typ || 'liten'; sizes[t] = (sizes[t] || 0) + 1; });
+                  return (
+                    <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {Object.entries(sizes).map(([typ, count]) => (
+                        <div key={typ} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{typ}</span>
+                          <span>{count} st</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
